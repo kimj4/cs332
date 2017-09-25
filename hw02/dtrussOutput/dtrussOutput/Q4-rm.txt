@@ -1,0 +1,7 @@
+$ rm out2.txt
+
+geteuid(0x7FFF5FBFFBD2, 0x2F, 0x1)		 = 0 0
+ioctl(0x0, 0x4004667A, 0x7FFF5FBFFA4C)		 = 0 0
+lstat64("out2.txt\0", 0x7FFF5FBFF9F0, 0x1000021A0)		 = 0 0
+access("out2.txt\0", 0x2, 0x1)		 = 0 0
+unlink("out2.txt\0", 0x0, 0x7FFF7024B5E0)		 = 0 0

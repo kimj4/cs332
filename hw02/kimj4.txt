@@ -1,0 +1,97 @@
+1 Running copyfile.py
+    a
+        number of read syscalls for longtext.txt: 2
+        number of write syscalls for longtext.txt: 6
+        number of bytes for the read calls:22211, 0
+        number of bytes for the write calls: 4096, 4096, 4096, 4096, 4096, 1731
+    b
+        A difference is that in Q1short, the first read call contains all the
+        text in the first read call and just a null terminator in the second
+        read call for the buf, but in Q1long, the whole of the text is
+        separated into two parts within the buf of the two read calls. This is
+        because for files that are longer than 256 bytes, dtruss will display
+        the first 256 bytes of what is about to be read.
+
+        Another difference is the multiple write calls for the longer file.
+        This is because the system is only able to write 4096 bytes at a time,
+        and must therefore write in chunks rather than all in one go. The last
+        call writes fewer than 4096 bytes because this is the remainder of the
+        chars at the end of the file.
+
+2 copyoneline.py
+    a
+        number of read syscalls for longtext.txt: 1
+        number of write syscalls for longtext.txt: 1
+        number of bytes for the read calls: 4096
+        number of bytes for the write calls: 356
+    b
+        Reading a single line is probably implemented by continually reading
+        a certain number of blocks, checking if an end of a line is reached in
+        that block, and continuing to read if it hasn't.
+
+        In this case, the first block of 4096 bytes contained the end of the
+        line marked by \r or \n, so there only need to be one read call.
+
+        The write call only writes 356 bytes because that is the length of the
+        string from the beginning to the end of the line which happens after
+        's be prettier than anyone else ,\"'. This line is not seen in the
+        dtruss output since it only shows the first 256 bytes
+
+3 cpflinebyline.py
+    a
+        number of read syscalls for longtext.txt: 7
+        number of write syscalls for longtext.txt: 6
+        number of bytes for the read calls: 4096, 4096, 4096, 4096, 4096, 1731, 0
+        number of bytes for the write calls: 4096, 4096, 4096, 4096, 4096, 1731
+    b
+        It doesn't look like the program actually writes line by line. Rather it
+        writes block by block where blocks are of size 4096.
+
+        There are two read calls before there is a write call. This leads me to
+        believe that python wants to optimize the program by accumulating line
+        information until the thing to write has reached 4096 bytes.
+
+        In the first read call, python saw that the last line continues on, so
+        it called another read to make sure that that line eventually ends. When
+        this is confirmed, python can safely write that initial 4096 bytes since
+        it knows that the end of the last line in the block will be written in
+        the next block
+
+        The above is repeated until it reaches a read call that reads fewer than
+        4096 bytes at which point the program writes that remainder.
+
+4
+    First command: diff
+        open("test.txt\0", 0x0, 0x0)		 = 3 0
+        open("test2.txt\0", 0x0, 0x0)		 = 4 0
+
+        Open the two files you want to compare. Here, these are file descriptors
+        3 and 4
+
+        read(0x3, "this file has 29 \ncharacters\n\0", 0x1000)		 = 29 0
+        read(0x3, "\0", 0xFE3)		 = 0 0
+        read(0x4, "this file has 29 \ntotal characters\n\0", 0x1000)		 = 35 0
+        read(0x4, "\0", 0xFDD)		 = 0 0
+
+        Read the two files. After this point, the diff program will have the
+        text from each of the files so that it can perform comparison operations
+
+        write_nocancel(0x1, "2c2\n\0", 0x4)		 = 4 0
+        write_nocancel(0x1, "< characters\n\0", 0xD)		 = 13 0
+        write_nocancel(0x1, "---\n\0", 0x4)		 = 4 0
+        write_nocancel(0x1, "> total characters\n\0", 0x13)		 = 19 0
+
+        After performaing the comparison operations, the diff program has the
+        lines for which the two files are different. It prints these by writing
+        to file descriptor 1, which is stdout.
+
+    Second command: rm
+        access("out2.txt\0", 0x2, 0x1)		 = 0 0
+
+        Check if the rm process can access the file
+
+        unlink("out2.txt\0", 0x0, 0x7FFF7024B5E0)		 = 0 0
+
+        This syscall deletes the filename from the filesystem in the OS. This
+        if there were no other processes that had this file open, it would be
+        removed from the filesystem.

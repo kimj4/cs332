@@ -1,0 +1,29 @@
+$ diff test.txt test2.txt (see below for contents of files)
+
+stat64("test.txt\0", 0x7FFF5FBFF730, 0x7FFF5FBFF720)		 = 0 0
+stat64("test2.txt\0", 0x7FFF5FBFF860, 0x7FFF5FBFF720)		 = 0 0
+open("test.txt\0", 0x0, 0x0)		 = 3 0
+open("test2.txt\0", 0x0, 0x0)		 = 4 0
+read(0x3, "this file has 29 \ncharacters\n\0", 0x1000)		 = 29 0
+read(0x3, "\0", 0xFE3)		 = 0 0
+read(0x4, "this file has 29 \ntotal characters\n\0", 0x1000)		 = 35 0
+read(0x4, "\0", 0xFDD)		 = 0 0
+getrlimit(0x1008, 0x7FFF5FBFEA50, 0x7FFF817452EC)		 = 0 0
+fstat64(0x1, 0x7FFF5FBFE9E0, 0x7FFF5FBFEAAC)		 = 0 0
+ioctl(0x1, 0x4004667A, 0x7FFF5FBFEA2C)		 = 0 0
+write_nocancel(0x1, "2c2\n\0", 0x4)		 = 4 0
+write_nocancel(0x1, "< characters\n\0", 0xD)		 = 13 0
+write_nocancel(0x1, "---\n\0", 0x4)		 = 4 0
+write_nocancel(0x1, "> total characters\n\0", 0x13)		 = 19 0
+close(0x3)		 = 0 0
+close(0x4)		 = 0 0
+close_nocancel(0x1)		 = 0 0
+
+
+test.txt contents:
+this file has 29 
+characters
+
+test2.txt contents:
+this file has 29 
+total characters

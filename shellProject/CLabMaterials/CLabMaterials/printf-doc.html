@@ -1,0 +1,119 @@
+<html>
+
+<head>
+<title>Using the printf function in C</title>
+</head>
+
+<body>
+
+<font COLOR="#4040C0">
+<h2>printf general format</h2>
+</font>
+
+The printf function is used to display output in C.  The simplest format
+is to simply display text:<br><br>
+<font face="courier">printf("text to display here")</font>
+<br><br>
+
+To display variables, you insert %code into the text string
+at the point you want the variable value to appear,
+where 'code' is a single character that indicates the type of variable
+that will be inserted (see the table below).  You then add each variable as an additional
+argument to the printf function; there must be a 1 to 1 correspondence
+between %code appearances in the text string and extra arguments after
+the text string in the printf function.  So for example, if x and y
+are the integers 2 and 3, the code <br><br>
+<font face="courier">printf("x has the value %d and y=%d", x, y) </font>
+<br><br> would display "x has the value 2 and y=3".
+
+printf does not add a newline character by default, if you want the next print to
+appear on the following line you must add the special character "\n"
+to the text argument of printf.  In fact you can add "\n" anywhere in
+the text argument to insert a newline.  The code <br><br>
+<font face="courier">printf("x = %d \n y = %d \n", x, y) </font>
+<br><br>would display: <br> x=2 <br> y=3 <br><br>
+
+When displaying decimal values (floats or doubles), I highly recommend
+using the code %g, as the compiler will automatically choose the best
+format & precision with which to display each value.  For example, if
+x=1.246 and y=2.5: <br><br>
+<font face="courier">printf("x=%g, y=%g\n", x, y) </font>
+<br><br> will display "x=1.246, y=2.5".  However, the code <br><br>
+<font face="courier">printf("x=%f, y=%f\n", x, y) </font>
+<br><br> will display the much less nice "x=1.246000, y=2.500000". <br><br>
+
+
+<font COLOR="#4040C0">
+<h2>Table of conversion characters</h2>
+</font>
+
+<table BORDER="1" CELLPADDING="10">
+  <tr>
+    <th ALIGN="center">Character</th>
+    <th ALIGN="center">Meaning</th>
+  </tr>
+  <tr ALIGN="center">
+    <td><tt><b>d</b></tt>, <tt><b>i</b></tt></td>
+    <td ALIGN="left">Display an <tt><b>int</b></tt> in signed decimal notation. </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>o</b></tt></td>
+    <td ALIGN="left">Display an <tt><b>int</b></tt> in unsigned octal notation (without a
+    leading <tt><b>0</b></tt>). </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>u</b></tt> </td>
+    <td ALIGN="left">Display an <tt><b>int</b></tt> in unsigned decimal notation. </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>x</b></tt>, <tt><b>X</b></tt></td>
+    <td ALIGN="left">Display an <tt><b>int</b></tt> in unsigned hexadecimal notation (without
+    a leading <tt><b>0x</b></tt> or <tt><b>0X</b></tt>). <tt><b>x</b></tt> gives lower case
+    output, <tt><b>X</b></tt> upper case. </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>c</b></tt></td>
+    <td ALIGN="left">Display a single <tt><b>char</b></tt> (after conversion to <tt><b>unsigned
+    int</b></tt>). </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>e</b></tt>, <tt><b>E</b></tt></td>
+    <td ALIGN="left">Display a <tt><b>double</b></tt> or <tt><b>float</b></tt> (after
+    conversion to <tt><b>double</b></tt>) in scientific notation. <b><tt>e</tt> </b>gives
+    lower case output, <b><tt>E</tt> </b>upper case. </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>f</b></tt></td>
+    <td ALIGN="left">Display a <b><tt>double</tt> </b>or <tt><b>float</b></tt> (after
+    conversion to <tt><b>double</b></tt>) in decimal notation. </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>g</b></tt>, <tt><b>G</b></tt></td>
+    <td ALIGN="left"><tt><b>g</b></tt> is either <tt><b>e</b></tt> or <tt><b>f</b></tt>,
+    chosen automatically depending on the size of the value and the precision specified. <tt><b>G</b></tt>
+    is similar, but is either <tt><b>E</b></tt> or <tt><b>f</b></tt>. </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>n</b></tt></td>
+    <td ALIGN="left">Nothing is displayed. The corresponding argument must be a pointer to an <b><tt>int</tt>
+    </b>variable. The number of characters converted so far is assigned to this variable. </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>s</b></tt></td>
+    <td ALIGN="left">Display a string. The argument is a pointer to <tt><b>char</b></tt>.
+    Characters are displayed until a <tt><b>'\0'</b></tt> is encountered, or until the number
+    of characters indicated by the precision have been displayed. (The terminating '<tt><b>\0'</b></tt>
+    is not output.) </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>p</b></tt></td>
+    <td ALIGN="left">Display a pointer (to any type). The representation is implementation
+    dependent. </td>
+  </tr>
+  <tr ALIGN="CENTER">
+    <td><tt><b>%</b></tt></td>
+    <td ALIGN="left">Display the <tt><b>%</b></tt> character. </td>
+  </tr>
+</table>
+</body>
+

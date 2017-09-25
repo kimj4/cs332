@@ -1,0 +1,7 @@
+$ mv out.txt out2.txt
+
+stat64("out2.txt\0", 0x7FFF5FBFF5F0, 0xFFFFFFFF)		 = 0 0
+access("out2.txt\0", 0x0, 0x0)		 = 0 0
+lstat64("out.txt\0", 0x7FFF5FBFE730, 0x0)		 = 0 0
+access("out2.txt\0", 0x2, 0x0)		 = 0 0
+rename("out.txt\0", "out2.txt\0")		 = 0 0

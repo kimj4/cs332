@@ -1,0 +1,16 @@
+$ tail longtest.txt
+
+getrlimit(0x1008, 0x7FFF5FBFF880, 0x7FFF817452EC)		 = 0 0
+open_nocancel("longtest.txt\0", 0x0, 0x1B6)		 = 3 0
+fstat64(0x3, 0x7FFF5FBFF9F0, 0x0)		 = 0 0
+mmap(0x0, 0x56C3, 0x1, 0x1, 0x3, 0x7FFF00000000)		 = 0x6F000 0
+write(0x1, "be transferred to the Guards at once?\" said she.\r\n\r\n\r\n\r\n\"Believe me, Princess, I am ready to do all I can,\" answered Prince\r\n\r\nVasili, \"but it is difficult for me to ask the Emperor. I should advise\r\n\r\nyou to appeal to Rumyantsev through Prince Golitsyn. T", 0x114)		 = 276 0
+fstat64(0x3, 0x7FFF5FBFF740, 0x7FFF5FBFF80C)		 = 0 0
+mmap(0x0, 0x1000000, 0x3, 0x1002, 0x2000000, 0x7FFF00000000)		 = 0x300000 0
+munmap(0x100300000, 0x500000)		 = 0 0
+munmap(0x101000000, 0x300000)		 = 0 0
+lseek(0x3, 0x0, 0x1)		 = 0 0
+lseek(0x3, 0x5000, 0x0)		 = 20480 0
+read_nocancel(0x3, "etween the chairs, lightly\r\n\r\nholding up the folds of her dress, and the smile shone still more\r\n\r\nradiantly on her beautiful face. Pierre gazed at her with rapturous,\r\n\r\nalmost frightened, eyes as she passed him.\r\n\r\n\r\n\r\n\"Very lovely,\" said Prince Andrew.\r", 0x1000)		 = 1731 0
+munmap(0x10006F000, 0x56C3)		 = 0 0
+read_nocancel(0x3, " go\r\n\r\naway.\r\n\r\n\r\n\r\n\"What would it cost you to say a word to the Emperor, and then he would\r\n\r\nbe transferred to the Guards at once?\" said she.\r\n\r\n\r\n\r\n\"Believe me, Princess, I am ready to do all I can,\" answered Prince\r\n\r\nVasili, \"but it is difficult for m", 0x1000) = 0 0

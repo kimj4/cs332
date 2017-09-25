@@ -1,0 +1,10 @@
+open_nocancel("longtest.txt\0", 0x0, 0x1B6)            = 3 0
+fstat64(0x3, 0x7FFF5FBFF150, 0x0)                = 0 0
+open_nocancel("out.txt\0", 0x601, 0x1B6)                 = 4 0
+fstat64(0x4, 0x7FFF5FBFF150, 0x0)                = 0 0
+fstat64(0x3, 0x7FFF5FBFF190, 0x7FFF5FBFF25C)             = 0 0
+read_nocancel(0x3, "This file contains >20k characters. It has all sorts of text but one important thing is the point at which 256 characters have been reached. This is still not there right now, I will put three stars as characters number 254, 255, and 256 in this file.  ***", 0x1000)           = 4096 0
+fstat64(0x4, 0x7FFF5FBFF110, 0x7FFF5FBFF1DC)             = 0 0
+close_nocancel(0x3)              = 0 0
+write_nocancel(0x4, "This file contains >20k characters. It has all sorts of text but one important thing is the point at which 256 characters have been reached. This is still not there right now, I will put three stars as characters number 254, 255, and 256 in this file.  ***", 0x164)           = 356 0
+close_nocancel(0x4)              = 0 0
