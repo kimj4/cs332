@@ -1,3 +1,7 @@
+// TODO: make < work
+// TODO: make > work
+// TODO: make | work
+
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -44,7 +48,6 @@ char** str_split(char* a_str, const char a_delim)
     //   'nano somename.txt' -> 'nano somename.txt^J'
     char *newline = strchr( a_str, '\n' );
     if ( newline ) {
-        printf("here\n");
         *newline = 0;
     }
 
@@ -69,7 +72,6 @@ char** str_split(char* a_str, const char a_delim)
         assert(idx == count - 1);
         // *(result + idx) = 0;
         *(result + idx) = NULL;
-
     }
     return result;
 }
@@ -84,6 +86,7 @@ int main() {
     int bytes_read;
     char *buf;
     buf = (char*) malloc(MAX_WORD_LENGTH + 1);
+
     while(true) {
         bytes_read = getline(&buf, &MAX_WORD_LENGTH, stdin);
 
@@ -104,18 +107,62 @@ int main() {
             count++;
         }
 
-        // int i
+        // This array keeps track of the idxs in the 'words' array whose element
+        //  is a symbol. Just initialize it with size count since it's not that
+        //  big of a number anyway.
+        // This keeps track of where the '>', '<', '|' characters are in the line
+        // int symbolsLocation[count] = {};
+        // forgot that you can't do dynamically sized arrays
+        // TODO: better data structure? maybe malloc?
+        int symbolsLocation[100] = {};
+
+
+        // store the index the symbols
+        // The spec says that a symbol cannot be the first token in a line so
+        //  we don't have to worry about the array being initialized with 0s
+        int i;
+        int curidx = 0;
+        for ( i = 0; i < count; i ++) {
+            if (!strcmp(words[i], "<") | !strcmp(words[i], ">") | !strcmp(words[i], "|")) {
+                printf("found a symbol\n");
+                symbolsLocation[curidx] = i;
+                curidx++;
+            }
+        }
+
+        // support for & as the last token only
+        bool is_amp = false;
+        if (!strcmp(words[count - 1], "&")) {
+            is_amp = true;
+        }
 
         // handling EOF for when being piped input.
         if (bytes_read == EOF) {
             break;
         }
-        // execute file (binary executable or script, shell commands are just scripts) given in words[0]
-        // with arguments in array "words" - array of strings (think argv list in Python),
-        // first string is again file to be executed (just like Python this is convention),
-        // then can have any number of args, then last string MUST BE NULL pointer.
-        int err = execvp(words[0], words);
-        printf( "Will this get printed? Yes if exec returned with an error! err = %d\n", err );
+
+        // -------------- code adapted from forktest.c -------------------------
+        // fork splits process into 2 identical processes that both continue
+        // running from point where fork() returns. Only difference is return
+        // value - 0 to the child process, pid of child to the parent process
+        int pid = fork();
+
+        // if 0 is returned, execute code for child process
+        // which is going to be the command
+        if( pid == 0 ) {
+            int err = execvp(words[0], words);
+            printf( "Will this get printed? Yes if exec returned with an error! err = %d\n", err );
+        }
+        // otherwise execute code for parent process
+        // Wait for the child to finish the command, and then try again.
+        else {
+            // if the last word was &, then don't wait for child process to finish
+            if (!is_amp) {
+                waitpid(pid, NULL, 0);
+            }
+            main();
+        }
+        return 0;
     }
 
     return 0;

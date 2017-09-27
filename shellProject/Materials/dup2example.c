@@ -25,6 +25,6 @@ int main() {
   dup2(newfd, 1);
 
   printf("This goes to file descriptor 1, which is now the new file");
-  
+
   return 0;
 }
