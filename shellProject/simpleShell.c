@@ -167,6 +167,7 @@ int main() {
 
                         dup2(newfd, 0);
                         free(inFileString);
+                        close(newfd);
                     } else if (!strcmp(words[symbolsLocation[i]], ">")) {
                         // run program on left, write output to file on right
                         char** outFileString = malloc(sizeof(char**));
@@ -176,6 +177,7 @@ int main() {
 
                         dup2(newfd, 1);
                         free(outFileString);
+                        close(newfd);
                     } else if (!strcmp(words[symbolsLocation[i]], "|")) {
                         // do the pipe stuff
                     }
