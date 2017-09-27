@@ -103,7 +103,7 @@ int main() {
         // str_split function adds a null string at the end of the array.
         while(words[count]) {
             if (words[count] )
-            printf("%s\n", words[count]);
+            // printf("%s\n", words[count]);
             count++;
         }
 
@@ -121,12 +121,11 @@ int main() {
         // The spec says that a symbol cannot be the first token in a line so
         //  we don't have to worry about the array being initialized with 0s
         int i;
-        int curidx = 0;
+        int symbolsLength = 0;
         for ( i = 0; i < count; i ++) {
             if (!strcmp(words[i], "<") | !strcmp(words[i], ">") | !strcmp(words[i], "|")) {
-                printf("found a symbol\n");
-                symbolsLocation[curidx] = i;
-                curidx++;
+                symbolsLocation[symbolsLength] = i;
+                symbolsLength++;
             }
         }
 
@@ -150,6 +149,22 @@ int main() {
         // if 0 is returned, execute code for child process
         // which is going to be the command
         if( pid == 0 ) {
+            if (symbolsLength) {
+                for (i = 0; i < symbolsLength; i++) {
+                    if (!strcmp(words[symbolsLocation[i]], "<")) {
+                        // run program on left, use as input file on right
+                    } else if (!strcmp(words[symbolsLocation[i]], ">")) {
+                        // run program on left, write output to file on right
+                    } else if (!strcmp(words[symbolsLocation[i]], "|")) {
+                        // do the pipe stuff
+                    }
+                }
+                // printf("looks like we have symbols\n");
+                char** subwords = malloc(count * sizeof(char**));
+                memcpy(subwords, words, symbolsLocation[0] * sizeof(*words));
+                int err = execvp(words[0], subwords);
+                printf( "Will this get printed? Yes if exec returned with an error! err = %d\n", err );
+            }
             int err = execvp(words[0], words);
             printf( "Will this get printed? Yes if exec returned with an error! err = %d\n", err );
         }
