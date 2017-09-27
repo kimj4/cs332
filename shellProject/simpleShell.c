@@ -8,6 +8,7 @@
 #include <regex.h>
 #include <string.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #include <unistd.h>
 #include <sys/types.h>
@@ -152,7 +153,18 @@ int main() {
             if (symbolsLength) {
                 for (i = 0; i < symbolsLength; i++) {
                     if (!strcmp(words[symbolsLocation[i]], "<")) {
+                        char** filenameString = malloc(sizeof(char**));
+                        memcpy(filenameString, &words[symbolsLocation[i] + 1], sizeof(*words));
+
+                        int newfd = open(filenameString[0], O_CREAT|O_RDONLY, 0644);
+
                         // run program on left, use as input file on right
+
+                        // standard output is file descriptor 1, so this call to
+                        // dup2 will close the standard output and make newfd file
+                        // descriptor 1 in the file table instead, causing all printf
+                        // statements to write to newfd
+                        dup2(newfd, 0);
                     } else if (!strcmp(words[symbolsLocation[i]], ">")) {
                         // run program on left, write output to file on right
                     } else if (!strcmp(words[symbolsLocation[i]], "|")) {
