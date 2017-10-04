@@ -1,1 +1,1 @@
-gcc H2SO4.c H2SO4Test.c -o molecules
+gcc modifiedExampleH2O.c H2SO4Test.c
