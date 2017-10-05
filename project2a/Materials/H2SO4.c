@@ -74,7 +74,10 @@ int checkSem(sem_t*, char*);
 
 sem_t* hydro_sem;
 sem_t* oxy_sem;
-sem_t* water_sem;
+sem_t* sul_sem;
+sem_t* molecule_sem;
+sem_t* H2SO4_sem;
+sem_t* hydro_exit_sem;
 
 
 void* oxygen(void* somevar) {
@@ -82,6 +85,13 @@ void* oxygen(void* somevar) {
     fflush(stdout);
 
     sem_post(oxy_sem);
+
+    // must wait for sulfur to exit before oxygen can exit.
+    int err = sem_wait(sul_sem);
+    if (err==1) printf("error on oxygen wait for sul_sem, error # %d\n", errno);
+
+    printf("oxygen exited\n");
+    fflush(stdout);
 
     return 0;
 }
@@ -92,12 +102,27 @@ void* hydrogen(void* somevar) {
 
     sem_post(hydro_sem);
 
+    // must wait on molecule to be formed before exiting
+    int err = sem_wait(molecule_sem);
+    if (err==1) printf("error on hydrogen wait for molecule_sem, error # %d\n", errno);
+
+    printf("hydrogen exited\n");
+    fflush(stdout);
+
+    // allow sulfur to exit
+    sem_post(hydro_exit_sem);
+
     return 0;
 }
 
 void* sulfur(void* somevar) {
     printf("sulfur produced\n");
     fflush(stdout);
+
+    // ???: acquire the lock so that only one sulfur atom can be waiting on the
+    //      hydrogen and oxygen atom at a time
+    int err0 = sem_wait(H2SO4_sem);
+    if (err0==1) printf("error on sulfur wait for H2SO4_sem, error # %d\n", errno);
 
     // sulfur needs to wait on 2 hydrogens
     int err = sem_wait(hydro_sem);
@@ -111,8 +136,36 @@ void* sulfur(void* somevar) {
     int err6 = sem_wait(oxy_sem);
     if (err3 == -1 || err4 == -1 || err5 == -1 || err6 == -1) printf("error on hydrogen wait for oxy_sem, error # %d\n", errno);
 
+    // int err0 = sem_wait(H2SO4_sem);
+    // if (err0==1) printf("error on sulfur wait for H2SO4_sem, error # %d\n", errno);
+
     printf("*** H2SO4 molecule produced ***\n");
     fflush(stdout);
+
+    // ???: release the lock as soon as a molecule is formed and allow another
+    //      sulfur atom to start calling down on hydrogen and oxygen
+    sem_post(H2SO4_sem);
+
+    // allow the two waiting hydrogens to exit
+    sem_post(molecule_sem);
+    sem_post(molecule_sem);
+
+    // exit after the hydrogens exit
+    int err7 = sem_wait(hydro_exit_sem);
+    int err8 = sem_wait(hydro_exit_sem);
+    if (err7==-1 || err8==-1) printf("error on oxygen wait for hydro_sem, error # %d\n", errno);
+
+    printf("sulfur exited\n");
+    fflush(stdout);
+
+    // allow the four oxygens to exit
+    sem_post(sul_sem);
+    sem_post(sul_sem);
+    sem_post(sul_sem);
+    sem_post(sul_sem);
+
+    // sem_post(H2SO4_sem);
+
 
     return 0;
 }
@@ -131,11 +184,25 @@ void openSems() {
       oxy_sem = sem_open("oxysmphr", O_CREAT|O_EXCL, 0466, 0);
     }
 
+    sul_sem = sem_open("sulsmphr", O_CREAT|O_EXCL, 0466, 0);
+    while (checkSem(sul_sem, "sulsmphr") == -1) {
+      sul_sem = sem_open("sulsmphr", O_CREAT|O_EXCL, 0466, 0);
+    }
+
+    molecule_sem = sem_open("moleculesmphr", O_CREAT|O_EXCL, 0466, 0);
+    while (checkSem(molecule_sem, "moleculesmphr") == -1) {
+        molecule_sem = sem_open("moleculesmphr", O_CREAT|O_EXCL, 0466, 0);
+    }
+
+    hydro_exit_sem = sem_open("hydroexitsmphr", O_CREAT|O_EXCL, 0466, 0);
+    while (checkSem(hydro_exit_sem, "hydroexitsmphr") == -1) {
+        hydro_exit_sem = sem_open("hydroexitsmphr", O_CREAT|O_EXCL, 0466, 0);
+    }
 
     // JK: This is going to be used as a mutex, so initialize with value 1
-    water_sem = sem_open("watersmphr", O_CREAT|O_EXCL, 0466, 1);
-    while (checkSem(water_sem, "watersmphr") == -1) {
-      water_sem = sem_open("watersmphr", O_CREAT|O_EXCL, 0466, 1);
+    H2SO4_sem = sem_open("H2SO4smphr", O_CREAT|O_EXCL, 0466, 1);
+    while (checkSem(H2SO4_sem, "H2SO4smphr") == -1) {
+      H2SO4_sem = sem_open("H2SO4smphr", O_CREAT|O_EXCL, 0466, 1);
     }
 }
 
@@ -147,8 +214,14 @@ void closeSems() {
     sem_close(oxy_sem);
     sem_unlink("oxysmphr");
 
-    sem_close(water_sem);
-    sem_unlink("watersmphr");
+    sem_close(sul_sem);
+    sem_unlink("sulsmphr");
+
+    sem_close(molecule_sem);
+    sem_unlink("moleculesmphr");
+
+    sem_close(H2SO4_sem);
+    sem_unlink("H2SO4smphr");
 }
 
 /*

@@ -30,6 +30,7 @@ void delay(int);
 
 // declare hydrogen semaphore as global variable so shared and accessible from both threads
 sem_t* hydro_sem;
+sem_t* hydro_exit_sem;
 sem_t* oxy_sem;
 sem_t* water_sem;
 
@@ -53,6 +54,11 @@ void openSems() {
   water_sem = sem_open("watersmphr", O_CREAT|O_EXCL, 0466, 1);
   while (checkSem(water_sem, "watersmphr") == -1) {
     water_sem = sem_open("watersmphr", O_CREAT|O_EXCL, 0466, 1);
+  }
+
+  hydro_exit_sem = sem_open("hydroexitsmphr", O_CREAT|O_EXCL, 0466, 1);
+  while (checkSem(hydro_exit_sem, "hydroexitsmphr") == -1) {
+    hydro_exit_sem = sem_open("hydroexitsmphr", O_CREAT|O_EXCL, 0466, 1);
   }
 
 
@@ -82,6 +88,10 @@ void* oxygen(void* args) {
   printf("oxygen produced\n");
   fflush(stdout);
 
+  // JK: acquire the lock basically
+  int err3 = sem_wait(water_sem);
+  if (err3==-1) printf("error on oxygen wait for water_sem, error # %d\n", errno);
+
   // oxygen waits (calls down) twice on the hydrogen semaphore
   // meaning it cannot continue until at least 2 hydrogen atoms
   // have been produced
@@ -89,13 +99,17 @@ void* oxygen(void* args) {
   int err2 = sem_wait(hydro_sem);
   if (err==-1 || err2==-1) printf("error on oxygen wait for hydro_sem, error # %d\n", errno);
 
-  // JK: acquire the lock basically
-  int err3 = sem_wait(water_sem);
-  if (err3==-1) printf("error on oxygen wait for water_sem, error # %d\n", errno);
+  // // JK: acquire the lock basically
+  // int err3 = sem_wait(water_sem);
+  // if (err3==-1) printf("error on oxygen wait for water_sem, error # %d\n", errno);
+
+  fflush(stdout);
 
   // if here, know 2 hydrogen atoms have been made already so produce a water molecule
   printf("*** H20 molecule produced ***\n");
-  fflush(stdout);
+
+
+  sem_post(water_sem);
 
   // JK: now that the h2o production message has been printed, wake the hydrogens
   sem_post(oxy_sem);
@@ -103,8 +117,8 @@ void* oxygen(void* args) {
 
   // JK: Now wait twice on hydrogen so that hydrogens can exit first and then
   //     wake the oxygen to exit.
-  int err4 = sem_wait(hydro_sem);
-  int err5 = sem_wait(hydro_sem);
+  int err4 = sem_wait(hydro_exit_sem);
+  int err5 = sem_wait(hydro_exit_sem);
   if (err4==-1 || err5 == -1) printf("error on oxygen wait for hydro_sem, error # %d\n", errno);
 
   printf("oxygen exited\n");
@@ -112,7 +126,7 @@ void* oxygen(void* args) {
 
   // JK: release the lock so that new molecules can be created only after
   //     the oxygen in the current molecule exits
-  sem_post(water_sem);
+  // sem_post(water_sem);
 
   return (void*) 0;
 }
@@ -137,12 +151,12 @@ void* hydrogen(void* args) {
   if (err == -1) printf("error on hydrogen wait for oxy_sem, error # %d\n", errno);
 
   printf("hydrogen exited\n");
-
+  fflush(stdout);
   // JK: when hydrogen is done exiting, try waking up a waiting oxygen so it can
   //     exit
-  sem_post(hydro_sem);
+  sem_post(hydro_exit_sem);
 
-  fflush(stdout);
+
   return (void*) 0;
 }
 
