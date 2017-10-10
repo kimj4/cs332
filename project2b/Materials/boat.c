@@ -73,8 +73,10 @@ void* childThread(void* args) {
     // printf("here\n");
 
     // check that there will still be one kid left on oahu
-    while (kidsOahu == 1) {
-        pthread_cond_wait(&boat, &lock);
+    if (adultsOahu > 0) {
+        while (kidsOahu == 1) {
+            pthread_cond_wait(&boat, &lock);
+        }
     }
 
 
@@ -116,8 +118,11 @@ void* childThread(void* args) {
         kidsOahu++;
         boatState = boatState - KID;
 
+        // while()
+
         // awake other kids waiting on the boat
         pthread_cond_broadcast(&boat);
+        pthread_mutex_unlock(&lock);
 
     }
 
