@@ -73,10 +73,9 @@ void* childThread(void* args) {
     // printf("here\n");
 
     // check that there will still be one kid left on oahu
-    if (adultsOahu > 0) {
-        while (kidsOahu == 1) {
-            pthread_cond_wait(&boat, &lock);
-        }
+    
+    while (kidsOahu == 1) {
+        pthread_cond_wait(&boat, &lock);
     }
 
 
