@@ -72,16 +72,16 @@ void* childThread(void* args) {
 
     // printf("here\n");
 
-    // check that there will still be one kid left on oahu
-    
-    while (kidsOahu == 1) {
-        pthread_cond_wait(&boat, &lock);
-    }
-
-
     boardBoat(KID, OAHU);
     kidsOahu--;
     boatState = boatState + KID;
+
+    int last = 0;
+
+    // if after boarding, there is no one on the island, cross and leave.
+    if (kidsOahu == 0 && adultsOahu == 0) {
+        last = 1;
+    }
 
     if (boatState == KID) {
         // TODO: check whether this will always be okay.
@@ -110,20 +110,139 @@ void* childThread(void* args) {
             pthread_cond_wait(&onBoat, &lock);
         }
 
-        // row back
-        boatCross(MOLO, OAHU);
-        boatLocation = OAHU;
-        leaveBoat(KID, OAHU);
-        kidsOahu++;
-        boatState = boatState - KID;
+        if (last) {
+            leaveBoat(KID, MOLO);
+            kidsMolokai++;
+            boatState = boatState - KID;
+            break;
+        } else {
+            // row back
+            boatCross(MOLO, OAHU);
+            boatLocation = OAHU;
+            leaveBoat(KID, OAHU);
+            kidsOahu++;
+            boatState = boatState - KID;
+            pthread_cond_broadcast(&boat);
+            continue;
+        }
 
         // while()
 
         // awake other kids waiting on the boat
-        pthread_cond_broadcast(&boat);
-        pthread_mutex_unlock(&lock);
+        // pthread_cond_broadcast(&boat);
+        // pthread_cond_broadcast(&oahu);
+        // pthread_mutex_unlock(&lock);
 
     }
+
+
+
+
+    // // if there are no adults on the island, the last child can go with the boat-child
+    // if (adultsOahu > 0) {
+    //     // check that there will still be one kid left on oahu
+    //     while (kidsOahu == 1) {
+    //         pthread_cond_wait(&boat, &lock);
+    //     }
+    //     boardBoat(KID, OAHU);
+    //     kidsOahu--;
+    //     boatState = boatState + KID;
+    //
+    //     if (boatState == KID) {
+    //         // TODO: check whether this will always be okay.
+    //         //         will there be cases where a single child will be rowing back alone?
+    //         while(boatState == KID) {
+    //             pthread_cond_wait(&onBoat, &lock);
+    //         }
+    //
+    //
+    //         boatCross(OAHU, MOLO);
+    //         boatLocation = MOLO;
+    //         leaveBoat(KID, MOLO);
+    //         kidsMolokai++;
+    //         boatState = boatState - KID;
+    //
+    //         // signal the other kid in the boat to get up and go back
+    //         pthread_cond_signal(&onBoat);
+    //
+    //
+    //     } else {
+    //         // wake other kid on the boat to go to other island
+    //         pthread_cond_broadcast(&onBoat);
+    //
+    //         // wait until arrived
+    //         while(boatState != KID) {
+    //             pthread_cond_wait(&onBoat, &lock);
+    //         }
+    //
+    //         // row back
+    //         boatCross(MOLO, OAHU);
+    //         boatLocation = OAHU;
+    //         leaveBoat(KID, OAHU);
+    //         kidsOahu++;
+    //         boatState = boatState - KID;
+    //
+    //         // while()
+    //
+    //         // awake other kids waiting on the boat
+    //         pthread_cond_broadcast(&boat);
+    //         pthread_mutex_unlock(&lock);
+    //
+    //     }
+    // } else {
+    //     boardBoat(KID, OAHU);
+    //     kidsOahu--;
+    //     boatState = boatState + KID;
+    //
+    //     if (boatState == KID) {
+    //         // TODO: check whether this will always be okay.
+    //         //         will there be cases where a single child will be rowing back alone?
+    //         while(boatState == KID) {
+    //             pthread_cond_wait(&onBoat, &lock);
+    //         }
+    //
+    //
+    //         boatCross(OAHU, MOLO);
+    //         boatLocation = MOLO;
+    //         leaveBoat(KID, MOLO);
+    //         kidsMolokai++;
+    //         boatState = boatState - KID;
+    //
+    //         // signal the other kid in the boat to get up and go back
+    //         pthread_cond_signal(&onBoat);
+    //     } else {
+    //         // wake other kid on the boat to go to other island
+    //         pthread_cond_broadcast(&onBoat);
+    //
+    //         // wait until arrived
+    //         while(boatState != KID) {
+    //             pthread_cond_wait(&onBoat, &lock);
+    //         }
+    //
+    //
+    //         leaveBoat(KID, MOLO);
+    //
+    //
+    //         // // row back
+    //         // boatCross(MOLO, OAHU);
+    //         // boatLocation = OAHU;
+    //         // leaveBoat(KID, OAHU);
+    //         // kidsOahu++;
+    //         // boatState = boatState - KID;
+    //
+    //         // while()
+    //
+    //         // awake other kids waiting on the boat
+    //         pthread_cond_broadcast(&boat);
+    //         pthread_mutex_unlock(&lock);
+    //         break;
+    //
+    //     }
+    //
+    // }
+
+
+
 
     }
 
