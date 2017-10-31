@@ -32,7 +32,8 @@ static void schedule(unsigned int cpu_id);
 typedef enum {
     FIFO = 0,
     RoundRobin,
-    StaticPriority
+    StaticPriority,
+    MLF
 } scheduler_alg;
 
 scheduler_alg alg;
@@ -41,7 +42,26 @@ scheduler_alg alg;
 int time_slice = -1;
 int cpu_count;
 
+// 1 is low 4 is high priority
+pcb_t* mlf_q1; //
+pcb_t* mlf_q2; // processes coming back from IO yield
+pcb_t* mlf_q3; // processes preempted by clock
+pcb_t* mlf_q4; // new processes
 
+pcb_t* q1_head;
+pcb_t* q2_head;
+pcb_t* q3_head;
+pcb_t* q4_head;
+
+pcb_t* q1_tail;
+pcb_t* q2_tail;
+pcb_t* q3_tail;
+pcb_t* q4_tail;
+
+static pthread_mutex_t q1_mutex;
+static pthread_mutex_t q2_mutex;
+static pthread_mutex_t q3_mutex;
+static pthread_mutex_t q4_mutex;
 /*
  * main() parses command line arguments, initializes globals, and starts simulation
  */
@@ -64,7 +84,10 @@ int main(int argc, char *argv[])
 	else if (argc > 2 && strcmp(argv[2],"-p")==0) {
 		alg = StaticPriority;
 		printf("running with static priority\n");
-	}
+	} else if (argc > 2 && strcmp(argv[2], "-m") == 0) {
+        alg = MLF;
+        printf("running with multi-level feedback\n");
+    }
 	else {
         fprintf(stderr, "Usage: ./os-sim <# CPUs> [ -r <time slice> | -p ]\n"
             "    Default : FIFO Scheduler\n"
@@ -85,6 +108,13 @@ int main(int argc, char *argv[])
     }
     assert(current != NULL);
     pthread_mutex_init(&current_mutex, NULL);
+
+
+    pthread_mutex_init(&q1_mutex, NULL);
+    pthread_mutex_init(&q2_mutex, NULL);
+    pthread_mutex_init(&q3_mutex, NULL);
+    pthread_mutex_init(&q4_mutex, NULL);
+
 
     /* Initialize other necessary synch constructs */
     pthread_mutex_init(&ready_mutex, NULL);
@@ -116,6 +146,24 @@ extern void idle(unsigned int cpu_id)
   schedule(cpu_id);
 }
 
+void print_ready_queue_size() {
+    pthread_mutex_lock(&ready_mutex);
+    int count = 0;
+    pcb_t* cur_pcb = head;
+    // printf("\n");
+    while(cur_pcb != NULL) {
+        // printf("%s\n", cur_pcb->name);
+        if (cur_pcb->state == PROCESS_READY) {
+            count ++;
+
+        }
+        cur_pcb = cur_pcb->next;
+    }
+    pthread_mutex_unlock(&ready_mutex);
+    printf("ready queue size: %i\n", count);
+
+}
+
 /*
  * schedule() is your CPU scheduler. It currently implements basic FIFO scheduling -
  * 1. calls getReadyProcess to select and remove a runnable process from your ready queue
@@ -133,19 +181,22 @@ extern void idle(unsigned int cpu_id)
  * THIS FUNCTION IS PARTIALLY COMPLETED - REQUIRES MODIFICATION
  */
 static void schedule(unsigned int cpu_id) {
+    // print_ready_queue_size();
+    // printf("is head null? : %p\n", head);
+    // printf("is tail null? : %p\n", tail);
+    // printf("are head and tail both null?: %i \n", head == NULL && tail == NULL);
     pcb_t* proc = getReadyProcess();
-    printf("schedule: here\n");
+    // printf("schedule: here\n");
 
     pthread_mutex_lock(&current_mutex);
     current[cpu_id] = proc;
     pthread_mutex_unlock(&current_mutex);
 
     if (proc!=NULL) {
-        printf("schedule: process returned is not null\n");
+        // printf("schedule: process returned is not null\n");
         proc->state = PROCESS_RUNNING;
     } else {
-        printf("schedule: prcoess returned is null\n");
-
+        // printf("schedule: prcoess returned is null\n");
     }
 
     // implementing clock interrupts when running round robin
@@ -156,8 +207,7 @@ static void schedule(unsigned int cpu_id) {
     } else if (alg == StaticPriority) {
         context_switch(cpu_id, proc, time_slice);
     }
-    printf("schedule: end\n");
-
+    // printf("schedule: end\n");
 }
 
 
@@ -175,16 +225,16 @@ static void schedule(unsigned int cpu_id) {
  */
 extern void preempt(unsigned int cpu_id) {
     // get process on cpu, set it to ready state
-    printf("preempt: before getting current_mutex\n");
+    // printf("preempt: before getting current_mutex\n");
     pthread_mutex_lock(&current_mutex);
-    printf("preempt: after getting current_mutex\n");
+    // printf("preempt: after getting current_mutex\n");
 
     current[cpu_id]->state = PROCESS_READY;
 
     // put process on the ready queue
     addReadyProcess(current[cpu_id]);
     pthread_mutex_unlock(&current_mutex);
-    printf("preempt: released current_mutex\n");
+    // printf("preempt: released current_mutex\n");
     // call schedule
     schedule(cpu_id);
 
@@ -243,96 +293,80 @@ extern void terminate(unsigned int cpu_id) {
  * THIS FUNCTION IS PARTIALLY COMPLETED - REQUIRES MODIFICATION
  */
 extern void wake_up(pcb_t *process) {
-    printf("wake_up: top\n");
-    // check cpus
-    // pthread_mutex_lock(&current_mutex);
-    int i;
-    int lowest_priority = 11;
-    int lowest_priority_cpu_id = -1;
-    int empty_cpu_idx = -1;
-    int done = 0;
 
+    if (alg == StaticPriority) {
+        // check cpus
+        // pthread_mutex_lock(&current_mutex);
+        int i;
+        int lowest_priority = 11;
+        int lowest_priority_cpu_id = -1;
+        int done = 0;
 
-    for (i = 0; i < cpu_count; i++) {
-        printf("wake_up: before getting current_mutex\n");
+        // printf("wake_up: before getting current_mutex\n");
         pthread_mutex_lock(&current_mutex);
-        printf("wake_up: after getting current_mutex\n");
-        if (current[i] == NULL) {
-            printf("found a free cpu\n");
-            // if an idling cpu is found, do nothing
-            // process->state = PROCESS_RUNNING;
-            // context_switch(i, process, time_slice);
-            done = 1;
-            break;
-        } else if (current[i]->static_priority < lowest_priority) {
-            printf("found a lower priority running process!\n");
-
-            // otherwise keep track of a process to replace
-            lowest_priority = current[i]->static_priority;
-            lowest_priority_cpu_id = i;
+        // printf("wake_up: after getting current_mutex\n");
+        for (i = 0; i < cpu_count; i++) {
+            // Look fo a cpu that's either idle or running a process of lower prio
+            if (current[i] == NULL) {
+                // if there's a idle cpu, then the proccess can just go into that.
+                //  so just break out of the loop and put it in the ready queue
+                done = 1;
+                break;
+            } else if (current[i]->static_priority < lowest_priority) {
+                // otherwise, find the CPU that's running the lowest prio process
+                lowest_priority = current[i]->static_priority;
+                lowest_priority_cpu_id = i;
+            }
         }
         pthread_mutex_unlock(&current_mutex);
-        printf("wake_up: released current_mutex\n");
-    }
+        // printf("wake_up: released current_mutex\n");
 
-    if (!done){
-        if (lowest_priority < process->static_priority) {
-            if (lowest_priority_cpu_id != -1) {
-                printf("wake_up: before getting current_mutex second time\n");
-                pthread_mutex_lock(&current_mutex);
-                printf("wake_up: after getting current_mutex second time\n");
+        if (!done){
+            // perform the following if you didn't find an empty cpu.
+            if (lowest_priority < process->static_priority) {
+                // if this process is of higher prio than whatever is running
+                if (lowest_priority_cpu_id != -1) {
+                    // printf("wake_up: before getting current_mutex second time\n");
+                    pthread_mutex_lock(&current_mutex);
+                    // printf("wake_up: after getting current_mutex second time\n");
 
+                    // put this process in the ready state
+                    process->state = PROCESS_READY;
+                    addReadyProcess(process);
+
+                    // take the currently running process back into the ready queue
+                    current[lowest_priority_cpu_id]->state = PROCESS_READY;
+                    addReadyProcess(current[lowest_priority_cpu_id]);
+
+                    pthread_mutex_unlock(&current_mutex);
+                    // printf("wake_up: released current_mutex second time\n");
+
+                    force_preempt(lowest_priority_cpu_id);
+                } else {
+                    printf("ERROR: found a lower prio but not an index!");
+                }
+            } else {
+                // if there are no running processes with lower prio, then just wait
+                //   in the ready queue
                 process->state = PROCESS_READY;
                 addReadyProcess(process);
-                // if there is a process with lower prio, force preempt the lowest
-                //    of them all
-                printf("about to call force_preempt\n");
-                printf("%i\n", lowest_priority_cpu_id);
-
-                // current[lowest_priority_cpu_id]->state = PROCESS_READY;
-                // addReadyProcess(current[lowest_priority_cpu_id]);
-
-                pthread_mutex_unlock(&current_mutex);
-                printf("wake_up: released current_mutex second time\n");
-
-                force_preempt(lowest_priority_cpu_id);
-                printf("after force_preempt\n");
-                // process->state = PROCESS_RUNNING;
-
-                // current[lowest_priority_cpu_id] = process;
-
-                // get process on cpu, set it to ready state
-
-                // put process on the ready queue
-
-                // call schedule
-                // schedule(lowest_priority_cpu_id);
-
-
-
             }
         } else {
-            // if there are no running processes with lower prio, then just wait
-            //   in the ready queue
+            // if there are no idling cpus and there are no less-important running
+            //  processes, just wait in the ready queue
             process->state = PROCESS_READY;
             addReadyProcess(process);
         }
     } else {
-        // if there are no running processes with lower prio, then just wait
-        //   in the ready queue
         process->state = PROCESS_READY;
         addReadyProcess(process);
     }
 
-    // pthread_mutex_unlock(&current_mutex);
-    // printf("at the end of wake_up\n");
-
-
-
 }
 
-
+/*****************************************************************************/
 /* The following 2 functions implement a FIFO ready queue of processes */
+/*****************************************************************************/
 
 /*
  * addReadyProcess adds a process to the end of a pseudo linked list (each process
@@ -340,7 +374,7 @@ extern void wake_up(pcb_t *process) {
  * it takes a pointer to a process as an argument and has no return
  */
 static void addReadyProcess(pcb_t* proc) {
-    printf("addReadyProcess: before waiting on ready_mutex\n");
+    // printf("addReadyProcess: before waiting on ready_mutex\n");
   // ensure no other process can access ready list while we update it
   pthread_mutex_lock(&ready_mutex);
 
@@ -375,17 +409,17 @@ static void addReadyProcess(pcb_t* proc) {
  */
 static pcb_t* getReadyProcess(void) {
 
-    printf("getReadyProcess: before waiting on ready_mutex\n");
+    // printf("getReadyProcess: before waiting on ready_mutex\n");
     // ensure no other process can access ready list while we update it
     pthread_mutex_lock(&ready_mutex);
-    printf("getReadyProcess: after getting ready_mutex\n");
+    // printf("getReadyProcess: after getting ready_mutex\n");
 
 
     if (alg == FIFO || alg == RoundRobin) {
         // if list is empty, unlock and return null
         if (head == NULL) {
       	  pthread_mutex_unlock(&ready_mutex);
-          printf("getReadyProcess: released ready_mutex\n");
+        //   printf("getReadyProcess: released ready_mutex\n");
       	  return NULL;
         }
 
@@ -396,74 +430,77 @@ static pcb_t* getReadyProcess(void) {
         // if there was no next process, list is now empty, set tail to NULL
         if (head == NULL) tail = NULL;
         pthread_mutex_unlock(&ready_mutex);
-        printf("getReadyProcess: released ready_mutex second time\n");
+        // printf("getReadyProcess: released ready_mutex second time\n");
 
         return first;
     } else if (alg == StaticPriority) {
-        // look for the ready process with highest priority
         if (head == NULL) {
+            // printf("getReadyProcess: head is null at the top of StaticPriority\n");
             tail = NULL;
             pthread_mutex_unlock(&ready_mutex);
-            printf("getReadyProcess: released ready_mutex third time\n");
+            // printf("getReadyProcess: released ready_mutex third time\n");
 
             return NULL;
         } else {
+            // search for the highest priority, store its index
             int max_prio_idx = 0;
             int max_prio_val = 0;
             int cur_idx = 0;
             pcb_t* cur_pcb = head;
+            // printf("\n");
+
             while(cur_pcb != NULL) {
-                printf("cur_pcb static_priority is %i\n", cur_pcb->static_priority);
+                // printf("searchWhile\n");
                 if ((cur_pcb->static_priority) > max_prio_val) {
-                    printf("I'm here!\n");
                     max_prio_val = cur_pcb->static_priority;
                     max_prio_idx = cur_idx;
                 }
                 cur_pcb = cur_pcb->next;
                 cur_idx ++;
-
             }
-            printf("max_prio_val up top is %i\n", max_prio_val);
-            printf("max_prio_idx up top is %i\n", max_prio_idx);
+            // printf("\n");
+            // printf("max_prio_val up top is %i\n", max_prio_val);
+            // printf("max_prio_idx up top is %i\n", max_prio_idx);
 
             cur_idx = 0;
             cur_pcb = head;
-            int cur_val = -1;
             pcb_t* prev = head;
-            // identify previous node
-            // identify node to be popped
-            // pop the desired node, set next of prev to the next of poppped node
-            while(cur_idx != max_prio_idx) {
-                // navigate to the node to be returned
-                cur_pcb = cur_pcb->next;
-                cur_idx++;
-                if (prev->next == cur_pcb) {
-                    // should only be true when beginning searching
-                    continue;
-                } else {
-                    prev = prev->next;
-                }
 
+            while(1) {
+                if (cur_pcb->static_priority != max_prio_val) {
+                    cur_pcb = cur_pcb->next;
+                    if (prev->next == cur_pcb) {
+                        continue;
+                    } else {
+                        prev = prev->next;
+                    }
+                } else {
+                    break;
+                }
             }
 
-            printf("found prio val is %i\n", cur_pcb->static_priority);
-            printf("found cur_idx is %i\n", cur_idx);
-            // if (cur_pcb == NULL) tail = NULL;
-            if (cur_pcb == prev) {
-                printf("prev and cur are the same\n");
-                head = NULL;
-                tail = NULL;
+            // if after searching, the found node is the head, then re-set the head
+            if (cur_pcb == head) {
+                // printf("highest prio is the head\n");
+                head = cur_pcb->next;
+                if (head == NULL) {
+                    tail = NULL;
+                }
+            } else if (cur_pcb == tail) {
+                // printf("highest prio is at the end of the list\n");
+                prev->next = NULL;
+                tail = prev;
             } else {
-                printf("*****************prev and cur are not the same\n");
-                // here, we are popping
+                // printf("highest prio is in the middle of the list\n"    );
+                // printf("prev->next == cur_pcb?: %i\n", prev->next == cur_pcb);
                 prev->next = cur_pcb->next;
             }
-            printf("is cur_pcb null? : %i\n", cur_pcb == NULL);
 
             pthread_mutex_unlock(&ready_mutex);
-            printf("getReadyProcess: released ready_mutex fourth time\n");
+            // printf("getReadyProcess: released ready_mutex fourth time\n");
 
             return cur_pcb;
         }
     }
+    printf("ERROR: getReadyProcess didn't have anything to return!\n");
 }

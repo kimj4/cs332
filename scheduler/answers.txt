@@ -23,4 +23,19 @@ Q2: Run your Round-Robin scheduler with timeslices of 800ms, 600ms, 400ms, and
     timeslices. However, in a real OS, the shortest timeslice possible is
     usually not the best choice. Why not?
 
-    200ms: 99 context switches, 67.6s total running time, 389.9s in READY state
+    200ms: 362 context switches, 67.6s total running time, 285.2s in READY state
+    400ms: 203 context switches, 67.6s total running time, 298.8s in READY state
+    600ms: 161 context switches, 67.6s total running time, 314.5s in READY state
+    800ms: 136 context switches, 67.6s total running time, 325.4s in READY state
+
+    <INSERT RESPONSE FOR Q2>
+
+Q3: The Shortest-Job First (SJF) scheduling algorithm is proven to have the
+    optimal average waiting time. However, it is only a theoretical algorithm;
+    it cannot be implemented in a typical CPU scheduler, because the scheduler
+    does not have advance knowledge of the length of each CPU burst. Run each of
+    your three scheduling algorithms (using one CPU), and compare the total
+    waiting times. Which algorithm is the closest approximation of SJF? Why?
+
+    static_priority run:
+        168 context switches, 68.8s total running time, 137.1s in READY state
