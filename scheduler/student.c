@@ -175,12 +175,16 @@ static void schedule(unsigned int cpu_id) {
  */
 extern void preempt(unsigned int cpu_id) {
     // get process on cpu, set it to ready state
+    printf("preempt: before getting current_mutex\n");
     pthread_mutex_lock(&current_mutex);
+    printf("preempt: after getting current_mutex\n");
+
     current[cpu_id]->state = PROCESS_READY;
 
     // put process on the ready queue
     addReadyProcess(current[cpu_id]);
     pthread_mutex_unlock(&current_mutex);
+    printf("preempt: released current_mutex\n");
     // call schedule
     schedule(cpu_id);
 
@@ -268,11 +272,15 @@ extern void wake_up(pcb_t *process) {
             lowest_priority_cpu_id = i;
         }
         pthread_mutex_unlock(&current_mutex);
+        printf("wake_up: released current_mutex\n");
     }
 
     if (!done){
         if (lowest_priority < process->static_priority) {
             if (lowest_priority_cpu_id != -1) {
+                printf("wake_up: before getting current_mutex second time\n");
+                pthread_mutex_lock(&current_mutex);
+                printf("wake_up: after getting current_mutex second time\n");
 
                 process->state = PROCESS_READY;
                 addReadyProcess(process);
@@ -283,6 +291,9 @@ extern void wake_up(pcb_t *process) {
 
                 // current[lowest_priority_cpu_id]->state = PROCESS_READY;
                 // addReadyProcess(current[lowest_priority_cpu_id]);
+
+                pthread_mutex_unlock(&current_mutex);
+                printf("wake_up: released current_mutex second time\n");
 
                 force_preempt(lowest_priority_cpu_id);
                 printf("after force_preempt\n");
@@ -296,6 +307,7 @@ extern void wake_up(pcb_t *process) {
 
                 // call schedule
                 // schedule(lowest_priority_cpu_id);
+
 
 
             }
@@ -366,12 +378,14 @@ static pcb_t* getReadyProcess(void) {
     printf("getReadyProcess: before waiting on ready_mutex\n");
     // ensure no other process can access ready list while we update it
     pthread_mutex_lock(&ready_mutex);
+    printf("getReadyProcess: after getting ready_mutex\n");
 
 
     if (alg == FIFO || alg == RoundRobin) {
         // if list is empty, unlock and return null
         if (head == NULL) {
       	  pthread_mutex_unlock(&ready_mutex);
+          printf("getReadyProcess: released ready_mutex\n");
       	  return NULL;
         }
 
@@ -382,12 +396,16 @@ static pcb_t* getReadyProcess(void) {
         // if there was no next process, list is now empty, set tail to NULL
         if (head == NULL) tail = NULL;
         pthread_mutex_unlock(&ready_mutex);
+        printf("getReadyProcess: released ready_mutex second time\n");
+
         return first;
     } else if (alg == StaticPriority) {
         // look for the ready process with highest priority
         if (head == NULL) {
             tail = NULL;
             pthread_mutex_unlock(&ready_mutex);
+            printf("getReadyProcess: released ready_mutex third time\n");
+
             return NULL;
         } else {
             int max_prio_idx = 0;
@@ -443,10 +461,9 @@ static pcb_t* getReadyProcess(void) {
             printf("is cur_pcb null? : %i\n", cur_pcb == NULL);
 
             pthread_mutex_unlock(&ready_mutex);
+            printf("getReadyProcess: released ready_mutex fourth time\n");
+
             return cur_pcb;
         }
     }
-
-    // pthread_mutex_unlock(&ready_mutex);
-    // return first;
 }
