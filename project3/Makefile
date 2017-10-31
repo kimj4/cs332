@@ -7,7 +7,7 @@ inc=student.h os-sim.h process.h
 misc=Makefile
 target=os-sim
 cflags=-g -O0
-lflags=-pthread
+lflags=-lpthread
 
 all: $(target)
 
