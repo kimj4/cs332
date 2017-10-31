@@ -1,0 +1,26 @@
+Q1: Run the FIFO OS simulation with 1, 2, and 4CPUs. Compare the total execution
+    time of each. Is there a linear relationship between the number of CPUs and
+    total execution time? Why or why not?
+
+    1: 99 context switches, 67.6 s running time, 389.9 s in READY state
+    2: 108 context switches, 35.8 s running time, 92.2 s in READY state
+    4: 182 context switches, 33.1 s running time, 0.2s in READY state
+
+    There is not a linear relationship between the number of CPUs and the total
+    execution time. There was a significant performance increase going from 1
+    to 2 CPUs but almost no change going from 2 to 4. This is because the number
+    of processes being run does not change. So while more things can be run
+    simultaneously, they are not, because the processes are not even on the
+    READY state.
+
+    One observation to support this is the fact that in the simulation, nearly
+    every single timestep had CPUs at idle.
+
+
+Q2: Run your Round-Robin scheduler with timeslices of 800ms, 600ms, 400ms, and
+    200ms. Use only one CPU for your tests. Compare the statistcs at the end of
+    the simulation. Show that the total waiting time decreases with shorter
+    timeslices. However, in a real OS, the shortest timeslice possible is
+    usually not the best choice. Why not?
+
+    200ms: 99 context switches, 67.6s total running time, 389.9s in READY state
