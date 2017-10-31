@@ -239,6 +239,7 @@ extern void terminate(unsigned int cpu_id) {
  * THIS FUNCTION IS PARTIALLY COMPLETED - REQUIRES MODIFICATION
  */
 extern void wake_up(pcb_t *process) {
+    printf("wake_up: top\n");
     // check cpus
     // pthread_mutex_lock(&current_mutex);
     int i;
@@ -249,7 +250,9 @@ extern void wake_up(pcb_t *process) {
 
 
     for (i = 0; i < cpu_count; i++) {
+        printf("wake_up: before getting current_mutex\n");
         pthread_mutex_lock(&current_mutex);
+        printf("wake_up: after getting current_mutex\n");
         if (current[i] == NULL) {
             printf("found a free cpu\n");
             // if an idling cpu is found, do nothing
@@ -325,7 +328,7 @@ extern void wake_up(pcb_t *process) {
  * it takes a pointer to a process as an argument and has no return
  */
 static void addReadyProcess(pcb_t* proc) {
-
+    printf("addReadyProcess: before waiting on ready_mutex\n");
   // ensure no other process can access ready list while we update it
   pthread_mutex_lock(&ready_mutex);
 
@@ -360,6 +363,7 @@ static void addReadyProcess(pcb_t* proc) {
  */
 static pcb_t* getReadyProcess(void) {
 
+    printf("getReadyProcess: before waiting on ready_mutex\n");
     // ensure no other process can access ready list while we update it
     pthread_mutex_lock(&ready_mutex);
 
@@ -399,6 +403,7 @@ static pcb_t* getReadyProcess(void) {
                 }
                 cur_pcb = cur_pcb->next;
                 cur_idx ++;
+
             }
             printf("max_prio_val up top is %i\n", max_prio_val);
             printf("max_prio_idx up top is %i\n", max_prio_idx);
@@ -420,6 +425,7 @@ static pcb_t* getReadyProcess(void) {
                 } else {
                     prev = prev->next;
                 }
+
             }
 
             printf("found prio val is %i\n", cur_pcb->static_priority);
