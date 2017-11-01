@@ -42,26 +42,7 @@ scheduler_alg alg;
 int time_slice = -1;
 int cpu_count;
 
-// 1 is low 4 is high priority
-pcb_t* mlf_q1; //
-pcb_t* mlf_q2; // processes coming back from IO yield
-pcb_t* mlf_q3; // processes preempted by clock
-pcb_t* mlf_q4; // new processes
 
-pcb_t* q1_head;
-pcb_t* q2_head;
-pcb_t* q3_head;
-pcb_t* q4_head;
-
-pcb_t* q1_tail;
-pcb_t* q2_tail;
-pcb_t* q3_tail;
-pcb_t* q4_tail;
-
-static pthread_mutex_t q1_mutex;
-static pthread_mutex_t q2_mutex;
-static pthread_mutex_t q3_mutex;
-static pthread_mutex_t q4_mutex;
 /*
  * main() parses command line arguments, initializes globals, and starts simulation
  */
@@ -86,13 +67,15 @@ int main(int argc, char *argv[])
 		printf("running with static priority\n");
 	} else if (argc > 2 && strcmp(argv[2], "-m") == 0) {
         alg = MLF;
+        time_slice = atoi(argv[3]);
         printf("running with multi-level feedback\n");
     }
 	else {
-        fprintf(stderr, "Usage: ./os-sim <# CPUs> [ -r <time slice> | -p ]\n"
+        fprintf(stderr, "Usage: ./os-sim <# CPUs> [ -r <time slice> | -p | -m <time slice>]\n"
             "    Default : FIFO Scheduler\n"
             "         -r : Round-Robin Scheduler (must also give time slice)\n"
-            "         -p : Static Priority Scheduler\n\n");
+            "         -p : Static Priority Scheduler\n"
+            "         -m : multi-level feedback scheduler\n\n ");
         return -1;
     }
 	fflush(stdout);
@@ -108,13 +91,6 @@ int main(int argc, char *argv[])
     }
     assert(current != NULL);
     pthread_mutex_init(&current_mutex, NULL);
-
-
-    pthread_mutex_init(&q1_mutex, NULL);
-    pthread_mutex_init(&q2_mutex, NULL);
-    pthread_mutex_init(&q3_mutex, NULL);
-    pthread_mutex_init(&q4_mutex, NULL);
-
 
     /* Initialize other necessary synch constructs */
     pthread_mutex_init(&ready_mutex, NULL);
@@ -161,7 +137,6 @@ void print_ready_queue_size() {
     }
     pthread_mutex_unlock(&ready_mutex);
     printf("ready queue size: %i\n", count);
-
 }
 
 /*
@@ -186,6 +161,7 @@ static void schedule(unsigned int cpu_id) {
     // printf("is tail null? : %p\n", tail);
     // printf("are head and tail both null?: %i \n", head == NULL && tail == NULL);
     pcb_t* proc = getReadyProcess();
+    // printf("%s\n", proc->name);
     // printf("schedule: here\n");
 
     pthread_mutex_lock(&current_mutex);
@@ -205,6 +181,8 @@ static void schedule(unsigned int cpu_id) {
     } else if (alg == RoundRobin) {
         context_switch(cpu_id, proc, time_slice);
     } else if (alg == StaticPriority) {
+        context_switch(cpu_id, proc, time_slice);
+    } else if (alg == MLF) {
         context_switch(cpu_id, proc, time_slice);
     }
     // printf("schedule: end\n");
@@ -230,6 +208,11 @@ extern void preempt(unsigned int cpu_id) {
     // printf("preempt: after getting current_mutex\n");
 
     current[cpu_id]->state = PROCESS_READY;
+    // processing coming back from clock interrupt gets prio lowered
+    if (current[cpu_id]->temp_priority > 0) {
+        current[cpu_id]->temp_priority--;
+        // printf("prio gets lowered\n" );
+    }
 
     // put process on the ready queue
     addReadyProcess(current[cpu_id]);
@@ -237,7 +220,6 @@ extern void preempt(unsigned int cpu_id) {
     // printf("preempt: released current_mutex\n");
     // call schedule
     schedule(cpu_id);
-
 }
 
 
@@ -357,6 +339,36 @@ extern void wake_up(pcb_t *process) {
             process->state = PROCESS_READY;
             addReadyProcess(process);
         }
+    } else if (alg == MLF) {
+        // printf("wake_up: top of MLF\n");
+        if (process->state == PROCESS_NEW) {
+            // new processes are of highest prio
+            process->state = PROCESS_READY;
+            process->temp_priority = 4;
+            addReadyProcess(process);
+            // printf("this process was new\n");
+        } else if (process->state == PROCESS_WAITING) {
+            // printf("this process was waiting\n");
+            // this is coming from IO, so it gets higher probability
+            if (process->temp_priority < 4) {
+                process->temp_priority++;
+            }
+            process->state = PROCESS_READY;
+            addReadyProcess(process);
+        } else if (process->state  == PROCESS_TERMINATED) {
+            printf("################  terminated process\n");
+        } else if (process->state == PROCESS_RUNNING) {
+            printf("################  running  process\n");
+        } else {
+            printf("##################################################################\n");
+            if (process->temp_priority < 4) {
+                process->temp_priority++;
+            }
+            process->state = PROCESS_READY;
+            addReadyProcess(process);
+        }
+        // printf("wake_up: bottom of MLF\n");
+
     } else {
         process->state = PROCESS_READY;
         addReadyProcess(process);
@@ -408,6 +420,9 @@ static void addReadyProcess(pcb_t* proc) {
  * THIS FUNCTION IS PARTIALLY COMPLETED - REQUIRES MODIFICATION
  */
 static pcb_t* getReadyProcess(void) {
+    // print_ready_queue_size();
+    // printf("in the while\n");
+
 
     // printf("getReadyProcess: before waiting on ready_mutex\n");
     // ensure no other process can access ready list while we update it
@@ -501,6 +516,62 @@ static pcb_t* getReadyProcess(void) {
 
             return cur_pcb;
         }
+    } else if (alg = MLF) {
+        // print_ready_queue_size();
+        // iterate through the ready queue, looking for the first highest prio
+        int i;
+        pcb_t* prev_pcb = head;
+        pcb_t* cur_pcb = head;
+        if (head == tail && head != NULL) {
+            cur_pcb = head;
+            head = NULL;
+            tail = NULL;
+        } else {
+            int done = 0;
+            for  (i = 4; i >= 1; i --) {
+                if (!done) {
+                    prev_pcb = head;
+                    cur_pcb = head;
+                    while (cur_pcb != NULL) {
+                        // printf("in the while\n");
+                        if (cur_pcb->temp_priority == i)  {
+                            // if the highest-prio node is found, pop it.
+                            if  (cur_pcb == head) {
+                                // printf("1\n");
+                                head = cur_pcb->next;
+                                if (head == NULL) tail = NULL;
+                            } else if (cur_pcb == tail) {
+                                // printf("2\n");
+                                tail = prev_pcb;
+                                tail->next = NULL;
+                            } else {
+                                // printf("3\n");
+                                prev_pcb->next = cur_pcb->next;
+                            }
+                            done = 1;
+                            break;
+                        } else {
+                            // if not, iterate.
+                            cur_pcb = cur_pcb->next;
+                            if (prev_pcb->next == cur_pcb) {
+                                // printf("6\n");
+                                continue;
+                                // break;
+                            } else {
+                                // printf("7\n");
+                                prev_pcb = prev_pcb->next;
+                            }
+                        }
+                    }
+                } else {
+                    break;
+                }
+            }
+        }
+
+        pthread_mutex_unlock(&ready_mutex);
+        // if (cur_pcb == NULL) printf("returning nulll\n");
+        return cur_pcb;
     }
     printf("ERROR: getReadyProcess didn't have anything to return!\n");
 }
