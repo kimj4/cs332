@@ -1,3 +1,7 @@
+Ju Yun Kim
+Answers  to questions for scheduler project
+
+
 Q1: Run the FIFO OS simulation with 1, 2, and 4CPUs. Compare the total execution
     time of each. Is there a linear relationship between the number of CPUs and
     total execution time? Why or why not?
