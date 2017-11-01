@@ -1,0 +1,41 @@
+1. What is the page size on this computer?
+
+    4096 bytes
+
+2. According to vm_stat, how much memory (in GB) is in pages that are active?
+   How does this compare to "memory used" in activity monitor?
+
+    memory in active pages: 4.892 GB
+    memory used: 6.11 GB
+
+3. According to vm_stat, how much memory (in GB) is in pages wired down?
+   How does this compare to "wired memory" in activity monitor?
+
+    memory in wired down pages 2.244 GB
+    wired memory: 2.11 GB
+
+4. Why is the amount of memory in pages given by vm_stat slightly different
+   that the amount of memory given by activity monitor for the categories in
+   the 2 above questions? Will the number given by vm_stat always be larger or
+   smaller than the number from activity monitor? Or could it be either?
+
+   'memory in active pages' and 'memory used' is different since the activity
+   monitor is combining app memory and wired memory for its metric. vm_stat's
+   active pages will always be a smaller value since it counts the two
+   separately.
+
+   The difference in the wired memory is small enough that I can reasonably
+   attribute it to variations between polling times. I think either one could
+   be larger at any given time
+
+5. Which categories in vm_stat are included in the "cache" category in activity
+   monitor?
+
+6. Which cateogry in vm_stat corresponds to "compressed" memory used in activity
+   monitor?
+
+7. How does the number of pageins compare to pageouts? Why is this the case?
+
+8. What is the difference between swap in/out and page in/out? Which is most
+   important for determining if your system has enough RAM to function
+   smoothly/quickly?
