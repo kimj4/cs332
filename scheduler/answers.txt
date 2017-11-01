@@ -28,7 +28,14 @@ Q2: Run your Round-Robin scheduler with timeslices of 800ms, 600ms, 400ms, and
     600ms: 161 context switches, 67.6s total running time, 314.5s in READY state
     800ms: 136 context switches, 67.6s total running time, 325.4s in READY state
 
-    <INSERT RESPONSE FOR Q2>
+    The data above demonstrates that shorter time slices will tend to result
+    in lower wait times in the ready queue.
+
+    In a real OS, this may not hold true, because there is a cost to context
+    switches. Shorter time slices necessarily means more context switches, so
+    there will be more overhead that will slow down the  total running time. In
+    a real system, one should choose a timeslice that balances overhead with
+    switching frequency.
 
 Q3: The Shortest-Job First (SJF) scheduling algorithm is proven to have the
     optimal average waiting time. However, it is only a theoretical algorithm;
@@ -39,3 +46,41 @@ Q3: The Shortest-Job First (SJF) scheduling algorithm is proven to have the
 
     static_priority run:
         168 context switches, 68.8s total running time, 137.1s in READY state
+
+    Of the three so far, static priority has the lowest waiting time. This is
+    due to the definition of the priorities for the given processes. The I/O
+    bound ones are of greater importance, so they always get to run instead  of
+    a CPU bound one. This gets static priority close to SJF becasuse I/O bound
+    processes are not very CPU intensive (by their nature of being bound by
+    the I/O and all). So if these short processes are allowed to run any time
+    they can, it'll be a close approximation of SJF.
+
+    However, if  there is a system that defines CPU bound processes with higher
+    priority, this  will not hold true.
+
+Q4: Compare your MLFS to RR for  a range of time slices. In what range should
+    you expect the two algorithms to behave  differently? Are there timeslices
+    for which one algorithm is significantly more efficient than the other?
+    Describe in general (not the specific test cases) when you would  expect
+    MLFS to be  superior to RR despite  the  extra complexity involved.
+
+    200ms: 364 context switches, 67.7s total running time, 235.9s in READY state
+    400ms: 204 context switches, 67.7s total running time, 238.4s in READY state
+    600ms: 161 context switches, 67.6s total running time, 230.8s in READY state
+    800ms: 136 context switches, 67.6s total running time, 239.4s in READY state
+
+    MLFS and RR would perform differently for longer time slices. This is
+    because RR with long time slices reduces down to FIFO, which is not
+    necessarily true for MLFS, since it tends to push cpu-bound processes to the
+    end through decreasing priority for those that get preempted. For the
+    specific tests here, any timeslice over 600ms would see some divergence in
+    performance.
+
+    In the test runs, MLFS consistently better than RR, but the difference
+    becomes more apparent as timeslices got longer.
+
+    MLFS would perform better than RR in personal computer applications where
+    responsiveness is king. Because MLFS is able to prioritize processes that
+    affect responsiveness (I/O bound ones), it would be better suited than RR,
+    especially when timeslices are big. And in real systems, bigger timeslices
+    cut down on the number of context switches which reduces overhead.
