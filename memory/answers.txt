@@ -31,11 +31,33 @@
 5. Which categories in vm_stat are included in the "cache" category in activity
    monitor?
 
+   From an Apple article, 'Cached Files' is memory that's been recently used and
+   then freed. Other processes can use it, but if the same process restarts,
+   they won't have to load it into RAM again.
+
+   pages inactive,
+
 6. Which cateogry in vm_stat corresponds to "compressed" memory used in activity
    monitor?
 
+   'Compressions'
+
 7. How does the number of pageins compare to pageouts? Why is this the case?
+
+   There are 429550 Pageins and 0 pageouts.
+   Pageins are reading stuff from disk to memory and pageouts is the opposite.
+   Pageins need to happen regularly to run various programs, but pageouts only
+   need to happen if all of the memory is used and some of the pages have to be
+   stored in disk until there is available space again.
 
 8. What is the difference between swap in/out and page in/out? Which is most
    important for determining if your system has enough RAM to function
    smoothly/quickly?
+
+   Swapping in and out means that whole processes are being pushed and popped
+   out of the disk while paging is for individual pages.
+
+   Paging is probably the better metric to measure if there is enough RAM since
+   swapping can happen to any computer if a program that requires a lot of
+   memory is run. If you have a lot of paging out, then it probably means that
+   individual processes are running out of memory.
