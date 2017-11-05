@@ -35,12 +35,15 @@
    then freed. Other processes can use it, but if the same process restarts,
    they won't have to load it into RAM again.
 
-   pages inactive,
+   pages inactive, pages purgeable
+
 
 6. Which cateogry in vm_stat corresponds to "compressed" memory used in activity
    monitor?
 
-   'Compressions'
+   'pages compressed' These are the pages that have been compressed and stored
+    in disk. The "compressed" in the activity monitor shows the size after
+    compression.
 
 7. How does the number of pageins compare to pageouts? Why is this the case?
 
@@ -61,3 +64,69 @@
    swapping can happen to any computer if a program that requires a lot of
    memory is run. If you have a lot of paging out, then it probably means that
    individual processes are running out of memory.
+
+
+   initial swap used: 0
+   inital cache: 3.78
+   initial compressed: 0
+
+
+9. As used RAM approaches available RAM, what happens to the amount of memory in
+    the "cached files" category? Why?
+
+    "cached files" jumped from 0 to 900MB when 15 of the 16GB were used. This
+    is probably because the OS decided that it's starting to run low, and
+    started to detect and stow away inactive pages to be made available for use
+    by other processes.
+
+
+10. At what point does the amount of compressed memory start increasing for the
+    Python process? Is it simply when all RAM is in use?
+
+    Compressed memory increased in jumps as the usage got close to the capacity.
+    The compressor is run when some threshold is reached, and under regular
+    circumstances, there is no need for it.
+
+11. Why is the memory pressure in activity monitor still green? (low pressure)?
+
+    There are not many processes running simultaneously. The system can manage
+    to use various techniques to keep physical memory usage at an acceptable
+    level even if the one hog process was using a lot of virtual memory.
+
+12. The amount of compressed memory shown for the Python process will be much
+    higher than the "compressed" value given in activity monitor for all
+    compressed memory. How can this be?
+
+    8gb vs 2.5gb
+    The compressed memory for the process is 'The memory sent to the VM compression'
+    as described by the mouseover description. The system compressed memory is
+    the memory that was actually stored in disk in the compressed form.
+
+    This means that the 8GB shown for python was compressed to something smaller
+    than 2.5GB, which was then stored in disk.
+
+13. Check vm_stat again after your program has run for awhile, what is the lowest
+    number of available pages you see?
+
+    3800
+
+14. Try and actually put some pressure on the memory, it can handle just this
+    Python program, but do a bunch of other things in succession until you see
+    the memory pressure go yellow. Open a bunch of browser tabs, open a bunch of
+    word documents, make a tiny change and save them, just open several
+    applications in a row that weren't already running. When memory pressure does
+    go yellow, are you now using swap?
+
+    Still not using swap, After a couple minutes in the high memory pressure
+    state, the swap usage went up to 8MB
+
+15. Finally quit the Python program and watch what happens to memory. Wait just
+    a few seconds after quitting and show vm_stat again a few times. How quickly
+    does the pages available value go up? How quickly does the number of pages
+    in the compressor fall? If you managed to use swap, does that immedately go
+    away? why or why not?
+
+    I waited a couple seconds after the exiting and by the time I ran vm_stat,
+    the free pages were already back up to 2.7 million.
+
+    I managed to use 8 MB of swap, and after about a minute, it dropped to 7.3MB
