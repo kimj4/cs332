@@ -16,10 +16,9 @@
  * @return The physical frame number of the page we are accessing.
  */
 pfn_t tlb_lookup(vpn_t vpn, int write) {
-	/* currently just skips tlb and goes to pagetable */
+	/* currently just skips tlb_lookup and goes to pagetable */
 	pfn_t pfn;
-	pfn = pagetable_lookup(vpn, write);
-
+	/* pfn = pagetable_lookup(vpn, write);*/
 	/*
 	* FIX ME : Step 5
 	* Note that tlb is an array with memory already allocated and initialized to 0/null
@@ -31,13 +30,24 @@ pfn_t tlb_lookup(vpn_t vpn, int write) {
 	* Search the TLB - hit if find valid entry with given VPN
 	* Increment count_tlbhits on hit.
 	*/
+
+	tlbe_t *tlb_entry; /* the entry to be returned */
 	int tlb_idx;
 	int hit = 0;
-	for (tlb_idx = 0; tlb_idx < 4; tlb_idx++) {
-		if (tlb[tlb_idx].vpn == vpn) {
-			hit = 1;
+	for (tlb_idx = 0; tlb_idx < tlb_size; tlb_idx++) {
+		pcb_t *test_pcb = rlt[tlb[tlb_idx].vpn].pcb;
+		vpn_t test_vpn = tlb[tlb_idx].vpn;
+		if ( (tlb[tlb_idx].valid) && (tlb[tlb_idx].vpn == vpn)) {
 			count_tlbhits++;
-			pfn = tlb[tlb_idx].pfn;
+			tlb_entry = &tlb[tlb_idx];
+
+			pfn = tlb_entry->pfn;
+			hit = 1;
+
+			tlb_entry->dirty = write;
+			tlb_entry->used = 1;
+			current_pagetable[vpn].dirty = write;
+			current_pagetable[vpn].used = 1;
 			break;
 		}
 	}
@@ -48,18 +58,25 @@ pfn_t tlb_lookup(vpn_t vpn, int write) {
 	* then do a clock-sweep to find a victim (entry to be replaced).
 	*/
 	if (!hit) {
-		int replaced = 0;
+		/* get the entry from ram */
 		pfn = pagetable_lookup(vpn, write);
+		int replaced = 0;
 		/* look for invalid entry */
 		for (tlb_idx = 0; tlb_idx < 4; tlb_idx++) {
 			if (!tlb[tlb_idx].valid) {
 				/* if found, replace the entry */
-				tlb[tlb_idx].vpn = vpn;
-				tlb[tlb_idx].pfn = pfn;
-				tlb[tlb_idx].valid = 1;
-				tlb[tlb_idx].dirty = write;
-				tlb[tlb_idx].used = 1;
+				tlb_entry = &tlb[tlb_idx];
+				tlb_entry->vpn = vpn;
+				tlb_entry->pfn = pfn;
+				tlb_entry->valid = 1;
+				tlb_entry->dirty = write;
+				tlb_entry->used = 1;
+
+
 				replaced = 1;
+				current_pagetable[vpn].dirty = write;
+				current_pagetable[vpn].used = 1;
+
 				break;
 			}
 		}
@@ -69,24 +86,24 @@ pfn_t tlb_lookup(vpn_t vpn, int write) {
 		   where you left off, so I'll just start from the beginning every
 		   time.*/
 		if (!replaced) {
-			printf("DOING A CLOCK SWEEP!\n");
+			/*printf("DOING A CLOCK SWEEP!\n");*/
 
 			int evicted = 0;
 			int cur_idx = 0;
 			while (!evicted) {
 				if (tlb[cur_idx].used) {
+					/* if used recently, unmark it */
 					tlb[cur_idx].used = 0;
 				} else {
-					if (tlb[cur_idx].dirty) {
-						/* if the tlb entry is dirty, write to ram */
-						rlt[tlb[cur_idx].pfn].pcb->pagetable[rlt[tlb[cur_idx].pfn].vpn].dirty = 1;
-					}
-					printf("============= assigned from a clock sweep!\n");
-					tlb[tlb_idx].vpn = vpn;
-					tlb[tlb_idx].pfn = pfn;
-					tlb[tlb_idx].valid = 1;
-					tlb[tlb_idx].dirty = write;
-					tlb[tlb_idx].used = 1;
+					tlb_entry = &tlb[tlb_idx];
+
+					tlb_entry->vpn = vpn;
+					tlb_entry->pfn = pfn;
+					tlb_entry->valid = 1;
+					tlb_entry->dirty = write;
+					tlb_entry->used = 1;
+					current_pagetable[vpn].dirty = write;
+					current_pagetable[vpn].used = 1;
 					evicted = 1;
 				}
 				cur_idx = (cur_idx + 1) % 4;
@@ -95,12 +112,15 @@ pfn_t tlb_lookup(vpn_t vpn, int write) {
 	}
 
 
-
 	/*
 	* In all cases perform TLB house keeping. This means marking the found TLB entry as
 	* used and if we had a write, dirty. We also need to update the page
 	* table entry in memory with the same data.
 	*/
+	tlb_entry->used = 1;
+	tlb_entry->dirty = write;
+
+
 
    return pfn;
 }

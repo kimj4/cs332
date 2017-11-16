@@ -42,18 +42,14 @@ pfn_t pagefault_handler(vpn_t request_vpn, int write) {
    * 3) Clear the victim page's TLB entry using the function tlb_clearone().
    */
 
-
-
    if (victim_pcb) {
-       /*printf("\nthere's something to evict!\n\n");*/
-       pte_t victim_pte = victim_pcb->pagetable[victim_vpn];
+       pte_t *victim_pte = &victim_pcb->pagetable[victim_vpn];
 
-       if (victim_pte.dirty) {
-           printf("=============page dirty, writing to disk\n");
+       if (victim_pte->dirty) {
            page_to_disk(victim_pfn, victim_vpn, victim_pcb->pid);
-           victim_pte.dirty = 0;
+           victim_pte->dirty = 0;
        }
-       victim_pte.valid = 0;
+       victim_pte->valid = 0;
        tlb_clearone(victim_vpn);
    }
 
@@ -69,7 +65,7 @@ pfn_t pagefault_handler(vpn_t request_vpn, int write) {
    rlt[victim_pfn].vpn = request_vpn;
    current->pagetable[request_vpn].pfn = victim_pfn;
    current->pagetable[request_vpn].valid = 1;
-   current->pagetable[request_vpn].valid = write;
+   current->pagetable[request_vpn].dirty = write;
    rlt[victim_pfn].pcb = current;
 
 

@@ -12,18 +12,17 @@
  * @return The physical frame number of the page we are accessing.
  */
 pfn_t pagetable_lookup(vpn_t vpn, int write) {
-   pfn_t pfn = 0;
+    pfn_t pfn = 0;
 
-   pte_t entry = current_pagetable[vpn];
-   if (entry.valid) {
-       pfn = entry.pfn;
-   } else {
-       count_pagefaults++;
-       entry.pfn = pagefault_handler(vpn, write);
-       entry.valid = 1;
+    pte_t entry = current_pagetable[vpn];
+    if (entry.valid) {
+        pfn = entry.pfn;
+    } else {
+        count_pagefaults++;
+        entry.pfn = pagefault_handler(vpn, write);
+        entry.valid = 1;
 
-       pfn = entry.pfn;
-   }
-   entry.dirty = write;
-   return pfn;
+        pfn = entry.pfn;
+    }
+    return pfn;
 }

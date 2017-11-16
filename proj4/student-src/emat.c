@@ -19,15 +19,17 @@ double compute_emat_all() {
 
     /* memory accesses include one for tlb hits and at least 2 for a page fault
       also the number of writes and reads all take one access */
-    int num_mem_accesses = count_tlbhits + 2 * count_pagefaults + count_writes + count_reads;
+    int num_mem_accesses = count_writes + count_reads;
     /* disk access is just the number of page faults doubled (design of simulator) */
-    int num_disk_accesses = count_pagefaults * 2;
+    int num_disk_accesses = count_pagefaults;
+    /* to account for the extra access that we need to do when we miss tlb*/
+    int tlb_misses = num_mem_accesses - count_tlbhits;
 
-    int total_time = num_mem_accesses * MEMORY_ACCESS_TIME + num_disk_accesses * DISK_ACCESS_TIME;
+    int total_time = num_mem_accesses * MEMORY_ACCESS_TIME + tlb_misses * MEMORY_ACCESS_TIME + num_disk_accesses * DISK_ACCESS_TIME;
 
     int total_accesses = count_writes + count_reads;
 
-    int emat = total_time / total_accesses;
+    int emat = total_time / (total_accesses * 1.0);
 
     return emat;
 }
@@ -38,16 +40,20 @@ double compute_emat_unforced() {
 
     /* memory accesses include one for tlb hits and at least 2 for a page fault
       also the number of writes and reads all take one access */
-    int num_mem_accesses = count_tlbhits + 2 * count_pagefaults + count_writes + count_reads;
 
-    int num_disk_accesses = count_diskaccesses;
-    printf("count_diskaccesses: %li\n", count_diskaccesses);
 
-    int total_time = num_mem_accesses * MEMORY_ACCESS_TIME + num_disk_accesses * DISK_ACCESS_TIME;
+
+    int num_mem_accesses = count_writes + count_reads;
+    /* to account for the extra access that we need to do when we miss tlb*/
+    int tlb_misses = num_mem_accesses - count_tlbhits;
+    int num_disk_accesses = count_diskaccesses; /* since we don't want to include the required ones */
+
+    int total_time = num_mem_accesses * MEMORY_ACCESS_TIME + tlb_misses * MEMORY_ACCESS_TIME + num_disk_accesses * DISK_ACCESS_TIME;
 
     int total_accesses = count_writes + count_reads;
 
-    int emat = total_time / total_accesses;
+    /* return in some precise format*/
+    int emat = (total_time / (total_accesses * 1.0));
 
     return emat;
 

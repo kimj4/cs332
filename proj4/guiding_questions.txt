@@ -13,3 +13,13 @@ What is the VPN given the address 0xBEEF?
 
 What is the offset given the address 0xBEEF?
     0xBEEF -> -0xEF = 1110 1111
+
+
+
+EMAT
+
+mem access time of 100ns
+avg disk time of 10ms
+how long for mem access 10 times, if 2 caused page faults, and 4 was tlb misses?
+
+2 page faults =
