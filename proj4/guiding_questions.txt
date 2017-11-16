@@ -1,0 +1,15 @@
+Part 1 - Split the Address
+16 bit virtual addresses
+Each page has 2^8  = 256 addressable locations
+
+How many bits is the offset?
+    8 bits, since each page has 256 locations, which is addressable by 8 bits
+
+How many bits for the VPN?
+    all the rest of the bits so 16 - 8 = 8
+
+What is the VPN given the address 0xBEEF?
+    0xBEEF -> 0xBE = 1011 1011
+
+What is the offset given the address 0xBEEF?
+    0xBEEF -> -0xEF = 1110 1111
