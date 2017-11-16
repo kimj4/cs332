@@ -1,0 +1,85 @@
+=== Scheduling ===
+1. SRTF is not used in production systems because it requires knowledge about
+   the runtime of the processes. This is simply not possible in most
+   circumstances, especially in any system that isn't embedded since a lot of
+   processes may have varying completion times depending on their input.
+
+2. Scenario where MLFQ is probably better than Lottery
+   TODO
+
+   Scenario where Lottery is probably better than MLFQ
+   TODO
+
+3a. In real systems where context switches have a cost, FIFO is always going to
+    have shorter average completion time than RR since it never has to switch
+    from running a program to another.
+
+3b. This can never happen. Let us consider the extremes.
+    If RR had an extremely short quantum, the average start time will be almost
+    nothing. So FIFO will have a worse average start time.
+    If RR had an extremely long quantum (longer than the running time of any
+    process), then it just reduces down to FIFO. This means that FIFO and RR
+    has the same average start time.
+    Therefore, there can never be a case where FIFO has a better average start
+    time than RR.
+
+TODO: question for Sherri: are programs here guaranteed to not hang forever
+3c. This can never happen. The problem depends on the cost of context switches.
+    Let us examine the extreme cases once again.
+    If the cost is nothing, then RR's completion time will be the same as FIFO's
+    If the cost is very large, then RR's completion time will be much longer than
+    FIFOs.
+    There is not a case where RR's average completion time is faster since that
+    would mean context switches somehow speed up processing.
+
+TODO: evaluate legitamacy of 'at least one'
+3d. This will happen if the chosen quantum is smaller than the running time of
+    at least one of the processes. If this one process is not the last one in
+    the line, it will get interrupted to allow some other process to start. This
+    is an overall reduction in the start time.
+
+3e. This can never happen.
+    Since both RR and FIFO are running the same number of processes, the
+    throughput is decided by the total completion time. This in turn is
+    dependent on the cost of the context switch.
+    If the cost is 0, the completion time is the same for RR and FIFO, so
+    the throughputs are equal.
+    If the cost is greater than 0, then RR will have a higher completion time
+    which means a lower throughput.
+    Since there is never a case where context switches have negative cost,
+    RR will never have a higher throughput than FIFO
+
+=== Deadlock ===
+1. TODO
+
+2. TODO
+
+3. TODO
+
+=== Memory ===
+1a. If the allocated memory has been written to, save to disk.
+    Mark the chunk as available for use again.
+    TODO
+
+1b. If any of the blocks in the page table are dirty, write them to disk
+    Mark the previously used memory as available.
+    TODO
+
+1c. TODO
+
+2a. TODO
+
+=== File Systems ===
+1a. Assuming that we want whole blocks to be addressable, we need 11 bits for
+    2k blocks. We can use the rest, 5 bits, for addressing blocks, which is
+    2^5 = 32 blocks.
+
+1b. With 32 bits per entry, and 2k in a block, the inode table can have up to
+    64 entries.
+    These 64 entries all map to another block of 2k each, which means it can
+    address 131072 bytes.
+    This would definitely all fit on one disk.
+    TODO: look at inode in the textbook or notes
+
+1c. We have 1gb / 1kb = 1,000,000 blocks in disk. This means that our FAT
+    table needs to store a million entries. TODO: finish
