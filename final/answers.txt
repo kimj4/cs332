@@ -4,11 +4,26 @@
    circumstances, especially in any system that isn't embedded since a lot of
    processes may have varying completion times depending on their input.
 
-2. Scenario where MLFQ is probably better than Lottery
-   TODO
+2. Scenario where MLFQ is probably better than Lottery:
+   If most of the processes that run switch between being IO or CPU bound over
+   time, then MLFQ will perform better than lottery. MLFQ can easily adapt to
+   the changes in the processes behaviors, since the design allows for a dynamic
+   reassignment of priority depending on what that process is doing.
+   A basic lottery scheduler cannot do this since processes are assigned some
+   number of tickets at creation, and without knowing the process behavior
+   changes before hand, there can be no dynamic reassignment. This means that
+   for a process that was born IO bound but changed to be CPU bound over time
+   will be chosen often, decreasing the responsiveness of the system.
 
-   Scenario where Lottery is probably better than MLFQ
-   TODO
+   Scenario where Lottery is probably better than MLFQ:
+   MLFQ without any modifications has a problem of starving lower priority
+   processes under certain conditions. This can happen if there are a relatively
+   small number of CPU bound processes and a lot of IO bound ones. The CPU
+   processs will quickly be pushed to the lower queues, and will never get
+   to run since there are so many processes that return from interrupts which
+   place them in the top queue.
+   Lottery scheduling doesn't have this problem so it'll not starve the CPU
+   bound process, hence performing better.
 
 3a. In real systems where context switches have a cost, FIFO is always going to
     have shorter average completion time than RR since it never has to switch
@@ -34,9 +49,9 @@ TODO: question for Sherri: are programs here guaranteed to not hang forever
 
 TODO: evaluate legitamacy of 'at least one'
 3d. This will happen if the chosen quantum is smaller than the running time of
-    at least one of the processes. If this one process is not the last one in
-    the line, it will get interrupted to allow some other process to start. This
-    is an overall reduction in the start time.
+    at least one of the processes, and this process is not at the end of the
+    queue. RR will cut off the long process, and allow the next to start, which
+    leads to an improved average start time compared to FIFO.
 
 3e. This can never happen.
     Since both RR and FIFO are running the same number of processes, the
@@ -50,11 +65,25 @@ TODO: evaluate legitamacy of 'at least one'
     RR will never have a higher throughput than FIFO
 
 === Deadlock ===
-1. TODO
+1a. on another sheet
 
-2. TODO
+1b. There is a cycle. It involves p1 and p3
 
-3. TODO
+1c. The system is not in deadlock.
+    p2 finishes, and releases an R1.
+    p1 obtains R1
+    p1 is now able to finish
+    p4 finishes, and releases an R2.
+    p3 obtains R2
+    p3 is now able to finish
+
+2. Yes. The safe state is defined by whether or not all threads can eventually
+   exit. The banker's algorithm looks all the way to the completion of all
+   threads to determine if a state is safe.
+
+3. We can allow resources to be preempted. To do so without disastrous
+   consequences, the resource should be virtualized, but this is impossible for
+   certain resources.
 
 === Memory ===
 1a. If the allocated memory has been written to, save to disk.
