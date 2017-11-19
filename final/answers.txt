@@ -129,7 +129,6 @@
     7: 3, 7, 4 compulsory miss, LRU: 3, MRU: 7
 
     There are 4 non-compulsory misses
-    TODO: double check the logic
 
 2aii: TLB state:
      : x, x, x   x, x, x  clock pointer: 0 initial state
@@ -155,8 +154,6 @@
     7: 3, 7, 6   n, y, n  clock pointer: 1 compulsory miss: clock runs a full cycle, and evicts the second entry
 
     There are 4 non-compulsory misses
-    TODO: double check the logic
-    TODO: check if the clock marks the current pointer as unused before ticking.
 
 
 === File Systems ===
@@ -168,8 +165,78 @@
     64 entries.
     These 64 entries all map to another block of 2k each, which means it can
     address 131072 bytes.
-    This would definitely all fit on one disk.
-    TODO: look at inode in the textbook or notes
+    This means that both the table and the addressable space fits in the 1GB
+    disk.
+
 
 1c. We have 1gb / 1kb = 1,000,000 blocks in disk. This means that our FAT
-    table needs to store a million entries. TODO: finish
+    table needs to store a million entries.
+    Each of these entires correspond to the physical block number, and also
+    contains a pointer to the next block in the file.
+    To be able to address a million entries, you will need 20 bits per entry.
+    Assuming bit-level allocation is possible, the page table will be at least
+    20,000,000 bits = 2,500,000 bytes = 2.5 MB
+
+2a. If the block that comes after the contiguous allocation is free, then use
+    that block.
+    If it's being used by some other file, then some relocation will have to
+    occur. One (not great) strategy is to move the proceeding file over by one
+    block, moving following files if necessary, and repeating until the working
+    file has enough room to continue.
+
+2b. You should have some data structure that stores free blocks. Get the address
+    of this block, and change the previously-last block's pointer to point to
+    this new block. Go to the new block and write whatever you have to write.
+    Set the new block's pointer to be -1, or repeat the process if further
+    expansion is necessary.
+
+2c. Iterate through each entry in the table until you find one that isn't being
+    used. Have the previously-last entry point to this entry, and write contents
+    in the physical block that corresponds to the new entry. Repeat if necessary
+    and when the newly added block is the last that you need, set its pointer to
+    be -1
+
+2d. The inode table is specific to a file, so look at the table entry that
+    directly follows the current last one. If it is free, find a free block in
+    disk, write to it, and have the new entry point to it.
+
+    If it is not free, navigate down the multiple levels until you do find an
+    unused entry, then perform the allocation steps above.
+
+
+=== Distributed Lock Acquisition ===
+1a. Depends on who in the cycle is holding the token.
+    The least: if the node holding the lock is directly before the requesting
+    node in the cycle, then there is only one message. (the token being passed)
+    The most: if the node holding the lock is directly after the requesting node
+    in the cycle, then there are N messages since the token needs to be passed
+    around the whole cycle before the requesting node can obtain it.
+
+1b. The requesting node sends a request to all other nodes (N - 1 messages)
+    Each of the other nodes then sends an acknowledgment message to the
+    requesting node before it can obtain the lock (another N - 1 messages)
+    Total sent: 2(N - 1) messages
+
+2a. 0 messages. The node that was holding the token goes ahead and obtains
+    the lock, and executes its critical section.
+
+2b. Depends on when the nodes send and receives requests
+    The least: Every single node in the network will send every other node a
+    request message. This is N(N - 1) messages.
+    If there is one node whose messages reach all other nodes and these nodes
+    respond before , before any other messages reach any other node, This is
+    N - 1 acknowledgement mesasges to this fast node.
+    If all of the acks reach the fast node before any other message reaches any
+    other node, then the fast node can execute its critical section after just
+    (N + 1)(N - 1) mesasges in the network.
+
+    The most: Every single node in the network will send every other node a
+    request message. This is N(N - 1) messages.
+    Every single node will receive these messages, and send either a positive
+    or a negative acknowledgement message. This is one message per request so
+    this is another N(N - 1) messages. This can happen if speeds between nodes
+    are pretty balanced.
+    Since the node that requested it first needs to get an acknowledgement
+    from every other node, it will not be able to begin before all of these
+    messages have been sent and received.
+    Total sent: 2N(N - 1) messages
