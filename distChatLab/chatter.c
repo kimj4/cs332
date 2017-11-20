@@ -36,6 +36,29 @@
 #include <pthread.h>
 #include <unistd.h>
 
+// TODO: remove these notes
+// Each node should hold a to-socket and a from-socket
+// to-socket: a thing that exists inside cs that the node sends tokens to
+//   first node: unset
+//   second node: first node
+//   all other nodes: unset
+//
+// from-socket: a thing that exists inside cs that the node receives tokens from
+//   first node: unset
+//   second node: first node
+//   all other nodes: unset
+//
+// When a node holding the token senses that a new node has joined, it sends
+//  the token to that node.
+// In the token, say where it's coming from (my node number) and where it should
+//  have gone if the new one didn't appear.
+//  TODO: see if nodes can know where the messages are coming from
+// The new node receives the token and sets the to-socket and from-socket
+// If it has anything in the buffer, it sends
+// When done with token, pass it along to the next thing.
+
+
+
 // messages may be at most 1024 characters long
 size_t BUFFER_SIZE = 1024;
 
@@ -46,6 +69,11 @@ int addressSize;
 // connected socket array, holds all nConnected sockets for this process, max 100.
 int cs[100];
 int nConnected = 0;
+
+int to_socket = -1;
+int from_socket = -1;
+
+int has_token = 0;
 
 
 // array to hold threads for receiving messages on a given connection, need 1
@@ -75,11 +103,29 @@ typedef struct toSendBuffer {
 
 toSendBuffer sendBuffer;
 
+typedef struct receiveMessage{
+    char message[1024];
+    // TODO: see if there is anything else I should add here.
+} receiveMessage;
+
+// JK addition: receive buffer holds up to 10 messages from another chatter(s)
+// circular FIFO queue
+typedef struct receivedBuffer {
+    receiveMessage messages[10];
+    int startIndex;
+    int nHeld;
+} receivedBuffer;
+
+receivedBuffer rBuffer;
+
 // lock to protect the sendBuffer as multiple threads access it
 pthread_mutex_t sendBufLock;
+pthread_mutex_t rBufLock;
 
-// JK: current timestamp of message
-int timestamp = 0;
+int most_recent_seq_num;
+
+// JK: current sequence number of message
+int seq_num = 1;
 
 int joinNetwork(int port);
 int createNetwork(int port);
@@ -105,6 +151,10 @@ int main(int argc, char* argv[])
     pthread_mutex_init(&sendBufLock, NULL);
     sendBuffer.startIndex = 0;
     sendBuffer.nHeld = 0;
+
+    pthread_mutex_init(&rBufLock, NULL);
+    rBuffer.startIndex = 0;
+    rBuffer.nHeld = 0;
 
     // seed the random number generator with the current time
     srand(time(NULL));
@@ -235,11 +285,102 @@ void* listenSocket(void* args) {
     int sock = cs[index];
     int size;
 
+    // initial set of the most recently received message's sequence number
+    most_recent_seq_num = (int)buffer[0];
+
+    int new_seq_num = 0;
+
     // recv blocks until message appears.
     // returns size of message actually read, or 0 if realizes connection is lost
     size = recv(sock, buffer, BUFFER_SIZE, 0);
     while (size>0) {
-        printf("%d: %s\n", sock, buffer);
+        // handling token receipt
+        if (!strcmp(&buffer[2], "token")) {
+            int tok_num = (int)buffer[0];
+            if (tok_num == -1) {
+                // then this node was the first node to enter network
+                to_socket = sock;
+                from_sock = sock;
+                has_token = 1;
+            } else {
+                // TODO: fill out for general case
+            }
+        } else {
+            new_seq_num = (int)buffer[0];
+            printf("new_seq_num: %d\n", new_seq_num);
+            // pthread_mutex_lock(&rBufLock);
+            if (new_seq_num == most_recent_seq_num + 1) {
+                // if the new message is supposed to go right after this one, print
+                //  the message and update
+                most_recent_seq_num = new_seq_num;
+                printf("%d: %s\n", sock, &buffer[1]);
+                printf("most_recent_seq_num: %i\n", most_recent_seq_num);
+
+                // now that the message has been saved, search for things in the
+                //  rBuffer that can go next
+                // since there could be multiple, do an infinite loop and break
+                pthread_mutex_lock(&rBufLock);
+                while (1) {
+                    int i;
+                    int index;
+                    int cur_seq_num;
+                    int found = 0;
+                    // for (i = 0; i < rBuffer.nHeld; i++) {
+                    for (i = 0; i < 10; i++) {
+                        // printf("inside for loop where there are %i entries\n", rBuffer.nHeld);
+                        index = (rBuffer.startIndex + i)%10;
+                        cur_seq_num = (int)rBuffer.messages[index].message[0];
+                        if (cur_seq_num == most_recent_seq_num + 1) {
+                            // if there is one found, then print and update
+                            most_recent_seq_num = cur_seq_num;
+                            printf("The following has been found in buffer\n");
+                            printf("%d: %s\n", sock, &rBuffer.messages[index].message[1]);
+                            printf("most_recent_seq_num: %i\n", most_recent_seq_num);
+
+                            // then remove that entry from the buffer
+                            rBuffer.startIndex = (rBuffer.startIndex + 1) % 10;
+                            rBuffer.nHeld --;
+
+                            found = 1;
+
+                            // then start over
+                            break;
+                        } else {
+                            // printf("cur_seq_num: %i\n", cur_seq_num);
+                            // printf("most_recent_seq_num: %i\n", most_recent_seq_num);
+                        }
+                    }
+                    if (!found) {
+                        // there are no entries directly following recent
+                        // printf("entries remaining in rBuffer: %i\n", rBuffer.nHeld);
+                        break;
+                    }
+                    // if there was something found, maybe there is another.
+                    // look again.
+                }
+                pthread_mutex_unlock(&rBufLock);
+            } else {
+                // otherwise put message in the received buffer
+
+
+                pthread_mutex_lock(&rBufLock);
+                if (rBuffer.nHeld == 10) {
+                    pthread_mutex_unlock(&rBufLock);
+                    printf("\n\nERROR: receive buffer full, undefined behavior for this case, exiting instead.\n\n");
+                    exit(1);
+                }
+
+                int index = (rBuffer.startIndex+rBuffer.nHeld)%10;
+                strcpy(rBuffer.messages[index].message, buffer);
+                rBuffer.nHeld++;
+                pthread_mutex_unlock(&rBufLock);
+                printf("just put %d in the rBuffer\n", new_seq_num);
+
+            }
+        }
+
+
+
         size = recv(sock, buffer, BUFFER_SIZE, 0);
      }
 
@@ -256,22 +397,42 @@ void* listenSocket(void* args) {
  */
 int getAndSend() {
     char* buffer = (char *) malloc(BUFFER_SIZE);
+    // if (nConnected == 2) {
+    //     printf("here!\n");
+    // }
+    if ((nConnected == 1) && (from_socket == -1) && (to_socket == -1)) {
+        printf("I should be the second node to connect\n");
+        // if this is the second node to connect, create the token and the ring
+        // printf("%i\n",cs[nConnected - 1]);
+        // printf("%i\n",cs[nConnected ]);
+        // printf("%i\n",cs[nConnected + 1]);
+        from_socket = cs[nConnected - 1];
+        to_socket = cs[nConnected - 1];
+        has_token = 1;
+        char num[1];
+        num[0] = (char)-1;
+        strcpy(&buffer[0], num);
+        strcpy(&buffer[1], "token");
+        // buffer =
+    } else {
+        // Get keyboard input from user, strip newline, quit if !q
+        ssize_t nChars = getline(&buffer, &BUFFER_SIZE, stdin);
+        buffer[nChars-1] = '\0';
+        if (strcmp(buffer,"!q")==0) return 1;
 
-    // Get keyboard input from user, strip newline, quit if !q
-    ssize_t nChars = getline(&buffer, &BUFFER_SIZE, stdin);
-    buffer[nChars-1] = '\0';
-    if (strcmp(buffer,"!q")==0) return 1;
+        // clear line user just entered (only want to display lines when we choose in case need to reorder)
+        printf("\33[1A\r");
+        printf("\33[2K\r");
+    }
 
 
 
-    // clear line user just entered (only want to display lines when we choose in case need to reorder)
-    printf("\33[1A\r");
-    printf("\33[2K\r");
 
-    // JK: add a number (timestamp) to the beginning of the message
-    char str[1024];
-    sprintf(str, "%d", timestamp);
-    printf("size of the string: %lu\n", sizeof(str));
+
+
+
+
+
 
     // check that sendBuffer is not full
     pthread_mutex_lock(&sendBufLock);
@@ -280,11 +441,28 @@ int getAndSend() {
         printf("\n\nERROR: send buffer full, undefined behavior for this case, exiting instead.\n\n");
         exit(1);
     }
+    // JK: add a number (sequence number) to the beginning of the message
+    char tmp[1024];
+    tmp[0] = (char)seq_num;
+
+    // copy the buffer over
+    strcpy(&tmp[1], buffer);
+
+    // copy the temp stuff back
+    strcpy(buffer, tmp);
+
+
+    // printf("%d\n", tmp[0]);
+    // printf("%s\n", tmp);
+    // printf("this message's sequence number: %i\n", seq_num);
+    // printf("size of the string: %lu\n", sizeof(str));
+
     // copy message to send buffer at appropriate index and initalize num remaining to send to 0
     int index = (sendBuffer.startIndex+sendBuffer.nHeld)%10;
     sendBuffer.messages[index].nToSend = 0;
     strcpy(sendBuffer.messages[index].message, buffer);
     sendBuffer.nHeld++;
+
     pthread_mutex_unlock(&sendBufLock);
     // Send message to all connections except those that have already been closed
     int i;
@@ -311,7 +489,9 @@ int getAndSend() {
     }
 
     // print line in my own window, currently paying no attention to order
-    printf("me: %s\n", buffer);
+    printf("me: %s\n", &buffer[1]);
+
+    seq_num++;
 
     return 0;
 }
